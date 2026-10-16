@@ -15,6 +15,7 @@ class HFGenerator:
         device = "cuda" if torch.cuda.is_available() else "cpu"
         dtype = torch.bfloat16 if device == "cuda" else torch.float32
         tok = AutoTokenizer.from_pretrained(self.model_name)
+        tok.padding_side = "left"  # decoder-only models require left padding for batched generation
         model = AutoModelForCausalLM.from_pretrained(
             self.model_name, torch_dtype=dtype, device_map=device
         )
