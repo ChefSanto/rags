@@ -7,7 +7,9 @@ Every execution writes one JSON file to experiments/results/ containing the
 full config snapshot, metrics, and reproducibility metadata. Results are
 committed to git so experiments are traceable and comparable over time.
 Ranked runs (full per-query doc lists) are written to artifacts/runs/
-(gitignored) and referenced from the result file.
+(gitignored) and referenced from the result file. When the config enables
+`generator`, the top-ranked documents are additionally fed to an LLM and
+answers are stored under artifacts/answers/ with a grounding metric.
 """
 
 from __future__ import annotations
@@ -78,6 +80,42 @@ def run_experiment(
     results_dir = Path(results_dir)
     results_dir.mkdir(parents=True, exist_ok=True)
     out_path = results_dir / f"{spec.name}__{timestamp}.json"
+
+    # --- optional generation stage: answer queries from retrieved docs ---
+    if spec.generator is not None:
+        from ..evaluation.answers import answer_grounding
+        from ..generation.generator import get_generator
+        from ..generation.prompts import build_prompt
+
+        print(f"generating answers with {spec.generator.model} "
+              f"(limit={spec.generator.limit})...")
+        docs_by_id = {d.id: d.text for d in dataset.documents}
+        qtext = {q.id: q.text for q in dataset.queries}
+        items = list(run.items())
+        if spec.generator.limit:
+            items = items[: spec.generator.limit]
+        prompts = {
+            qid: build_prompt(
+                qtext[qid],
+                [docs_by_id[d] for d in docids if d in docs_by_id],
+                template=spec.generator.prompt_template,
+                max_context_chars=spec.generator.max_context_chars,
+            )
+            for qid, docids in items
+        }
+        answers = get_generator(spec.generator).generate(prompts)
+
+        ans_dir = Path(repo_root or ".") / "artifacts" / "answers"
+        ans_dir.mkdir(parents=True, exist_ok=True)
+        ans_path = ans_dir / f"{experiment_id}.json"
+        ans_path.write_text(json.dumps(answers, indent=2) + "\n", encoding="utf-8")
+        result["answers_artifact"] = str(ans_path)
+        result["metrics"]["answer_grounding"] = round(
+            answer_grounding(answers, run, docs_by_id, dataset.qrels,
+                             embedder_name=spec.models.embedding), 4)
+        result["metrics"]["answer_avg_chars"] = round(
+            sum(len(a) for a in answers.values()) / max(len(answers), 1), 1)
+
     out_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     result["result_path"] = str(out_path)
     return result

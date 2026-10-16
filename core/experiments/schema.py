@@ -48,11 +48,24 @@ class EvaluationSpec:
 
 
 @dataclass
+class GeneratorSpec:
+    """Optional generation stage: answer the query from retrieved docs with an LLM."""
+
+    model: str  # HF model id, e.g. "Qwen/Qwen2.5-3B-Instruct"
+    max_new_tokens: int = 256
+    temperature: float = 0.0
+    limit: int | None = None  # cap number of queries answered (None = all)
+    max_context_chars: int = 3000
+    prompt_template: str | None = None  # custom template with {context}/{question}
+
+
+@dataclass
 class ExperimentSpec:
     name: str
     description: str
     dataset: DatasetSpec
     retrieval: RetrievalSpec
+    generator: GeneratorSpec | None = None
     models: ModelSpec = field(default_factory=ModelSpec)
     parameters: dict = field(default_factory=lambda: {"seed": 42})
     evaluation: EvaluationSpec = field(default_factory=EvaluationSpec)
@@ -72,6 +85,7 @@ def load_spec(config_path: str | Path) -> ExperimentSpec:
             description=exp.get("description", ""),
             dataset=DatasetSpec(**raw["dataset"]),
             retrieval=RetrievalSpec(**raw["retrieval"]),
+            generator=GeneratorSpec(**raw["generator"]) if raw.get("generator") else None,
             models=ModelSpec(**raw.get("models", {})),
             parameters=raw.get("parameters", {"seed": 42}),
             evaluation=EvaluationSpec(**raw.get("evaluation", {})),

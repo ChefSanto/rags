@@ -1,0 +1,41 @@
+experiment:
+  name: fiqa-bm25-qwen-v1
+  description: >
+    First working-RAG run: BM25 retrieval (top-5) + Qwen2.5-3B-Instruct
+    answers on a 100-query slice of FiQA. Infrastructure milestone:
+    end-to-end query -> retrieve -> generate -> grounded-answer, stored
+    reproducibly.
+
+dataset:
+  name: fiqa
+  version: "1.0"
+  path: datasets/downloads/fiqa
+
+retrieval:
+  method: bm25
+  top_k: 5
+  params:
+    k1: 1.5
+    b: 0.75
+
+generator:
+  model: Qwen/Qwen2.5-3B-Instruct
+  max_new_tokens: 200
+  temperature: 0.0
+  limit: 100
+  max_context_chars: 3000
+
+models:
+  embedding: sentence-transformers/all-MiniLM-L6-v2
+
+parameters:
+  seed: 42
+
+evaluation:
+  metrics:
+    - recall_at_5
+    - recall_at_10
+    - precision_at_10
+    - mrr_at_10
+    - ndcg_at_10
+  k_values: [5, 10]
