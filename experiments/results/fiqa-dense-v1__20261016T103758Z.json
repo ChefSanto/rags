@@ -1,27 +1,24 @@
 {
-  "experiment_id": "fiqa-bm25-v1__20261016T082351Z",
-  "name": "fiqa-bm25-v1",
-  "description": "Phase 4 baseline: BM25 on FiQA2018 (BEIR). First real research number \u2014 the fixed-BM25 reference point for property-routing experiments.\n",
+  "experiment_id": "fiqa-dense-v1__20261016T103758Z",
+  "name": "fiqa-dense-v1",
+  "description": "Phase 4 baseline: dense retrieval (all-MiniLM-L6-v2) on FiQA. Canonical run on Kaggle GPU.\n",
   "dataset": "fiqa",
   "dataset_version": "1.0",
-  "retriever": "bm25",
-  "retrieval_params": {
-    "k1": 1.5,
-    "b": 0.75
-  },
+  "retriever": "dense",
+  "retrieval_params": {},
   "seed": 42,
   "num_documents": 57638,
   "num_queries": 6648,
   "metrics": {
-    "recall_at_5": 0.3748,
-    "recall_at_10": 0.4499,
-    "precision_at_10": 0.0614,
-    "mrr_at_10": 0.2827,
-    "ndcg_at_10": 0.2293
+    "recall_at_5": 0.552,
+    "recall_at_10": 0.6369,
+    "precision_at_10": 0.1014,
+    "mrr_at_10": 0.4323,
+    "ndcg_at_10": 0.368
   },
   "config": {
-    "name": "fiqa-bm25-v1",
-    "description": "Phase 4 baseline: BM25 on FiQA2018 (BEIR). First real research number \u2014 the fixed-BM25 reference point for property-routing experiments.\n",
+    "name": "fiqa-dense-v1",
+    "description": "Phase 4 baseline: dense retrieval (all-MiniLM-L6-v2) on FiQA. Canonical run on Kaggle GPU.\n",
     "dataset": {
       "name": "fiqa",
       "version": "1.0",
@@ -29,15 +26,12 @@
       "format": "beir"
     },
     "retrieval": {
-      "method": "bm25",
+      "method": "dense",
       "top_k": 10,
-      "params": {
-        "k1": 1.5,
-        "b": 0.75
-      }
+      "params": {}
     },
     "models": {
-      "embedding": null,
+      "embedding": "sentence-transformers/all-MiniLM-L6-v2",
       "reranker": null
     },
     "parameters": {
@@ -59,7 +53,7 @@
     "schema_version": "1.0"
   },
   "metadata": {
-    "git_commit": "03a1c2196756887363433b3dfe08b5d2257ddb38",
+    "git_commit": "efe2d22c36a85cd49fec421044dfcf362b56712c",
     "git_dirty": true,
     "python_version": "3.13.15",
     "platform": "Linux-6.18.48+-x86_64-with-glibc2.39",
@@ -77,6 +71,6 @@
       "pymupdf": null
     },
     "seed": 42,
-    "timestamp_utc": "2026-10-16T08:23:51+00:00"
+    "timestamp_utc": "2026-10-16T10:37:58+00:00"
   }
 }

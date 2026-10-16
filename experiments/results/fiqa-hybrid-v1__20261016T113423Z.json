@@ -1,5 +1,5 @@
 {
-  "experiment_id": "fiqa-hybrid-v1__20261016T085251Z",
+  "experiment_id": "fiqa-hybrid-v1__20261016T113423Z",
   "name": "fiqa-hybrid-v1",
   "description": "Phase 4 baseline: hybrid BM25+dense fusion on FiQA. Canonical run on Kaggle GPU.\n",
   "dataset": "fiqa",
@@ -22,9 +22,10 @@
     "recall_at_5": 0.5486,
     "recall_at_10": 0.6295,
     "precision_at_10": 0.0986,
-    "mrr_at_10": 0.423,
-    "ndcg_at_10": 0.3608
+    "mrr_at_10": 0.4237,
+    "ndcg_at_10": 0.361
   },
+  "run_artifact": "/kaggle/working/rags/artifacts/runs/fiqa-hybrid-v1__20261016T113423Z.json",
   "config": {
     "name": "fiqa-hybrid-v1",
     "description": "Phase 4 baseline: hybrid BM25+dense fusion on FiQA. Canonical run on Kaggle GPU.\n",
@@ -71,7 +72,7 @@
     "schema_version": "1.0"
   },
   "metadata": {
-    "git_commit": "03a1c2196756887363433b3dfe08b5d2257ddb38",
+    "git_commit": "5c01828684fe90fc19be3405bbb9c3761c403420",
     "git_dirty": true,
     "python_version": "3.13.15",
     "platform": "Linux-6.18.48+-x86_64-with-glibc2.39",
@@ -89,6 +90,6 @@
       "pymupdf": null
     },
     "seed": 42,
-    "timestamp_utc": "2026-10-16T08:52:51+00:00"
+    "timestamp_utc": "2026-10-16T11:34:23+00:00"
   }
 }
