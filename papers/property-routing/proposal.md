@@ -118,6 +118,49 @@ artifacts in repo `experiments/results/`.
   query features. Conclusion: this feature family is ruled out; next
   candidates are query embeddings (v2a) and per-document properties (v2b).
 
+  - **H3 third test (router v2a, query-embedding features): negative.**
+  Pure-embedding routing recovered 1.4% of the oracle gap (vs v1 lexical
+  4.9%); emb+lex 4.6% but confounded by unscaled PCA. Two independent
+  query-side feature families converge on the same ceiling: strategy
+  levels predictable, per-query deviations not. Next: in-sample
+  diagnostic to separate "signal invisible to query features" from
+  "irreducible noise"; then document-side properties (v2b).
+
+- **In-sample diagnostic: signal exists, shift is the failure.**
+  Training and testing on the same split recovers 53.6% (v1 lexical) and
+  72.5% (v2a embedding) of the oracle gap — versus 4.9% / 1.4% with honest
+  train->test splits. The routing signal is present in query features
+  (embeddings > lexical) but BEIR train splits are not test-distributed.
+  Open question: test-distributed training labels (pseudo-labeled queries
+  per corpus) — router v3.
+
+  - **Transfer study: the routing signal is local, not universal.**
+  Cross-domain transfer at test distribution is negative (v2a embedding:
+  -11.5% / -25.0% oracle recovery fiqa<->nfcorpus), with cross-domain
+  score miscalibration as the mechanism. Combined with in-sample
+  (53.6-72.5%) vs cross-split (1.4-4.9%) results: routing rules do not
+  transfer across splits or corpora. Consequence: routers must be
+  trained per-corpus on test-distributed data -> router v3
+  (pseudo-labeled queries).
+
+- **Generation stage live (working RAG, 2026-10-17).** End-to-end
+  query -> BM25(top-5) -> Qwen2.5-3B-Instruct -> grounded answers on
+  100 FiQA queries. First answer-level metric: relevance-weighted
+  grounding 0.4467 (MiniLM cosine, no reference point yet). Qualitative:
+  ~1/3 coherent grounded answers, ~1/3 prompt-echo, ~1/3 corpus-noise
+  propagation (FiQA is partly noisy source text; 3B model amplifies).
+  Grounding comparison across retrieval strategies is the next
+  experiment — first RAG-level evidence for the routing thesis.
+
+  - **Answer-level evidence for routing (2026-10-17).** Working RAG
+  (BM25/dense/hybrid top-5 -> Qwen2.5-3B) on 100 FiQA queries:
+  answer grounding 0.501 / 0.574 / 0.631 tracks retrieval nDCG
+  (0.206 / 0.322 / 0.334) with preserved ordering. Retrieval strategy
+  choice propagates to answer quality. Grounding is a proxy metric;
+  correctness validation (judge model / human sample) is future work.
+  Batched-generation left-padding bug found via transformers warning and
+  fixed (BM25 grounding +0.054 after fix).
+
 ## 8. Deliverables
 
 - Benchmark: multi-category corpus + profiler profiles + per-strategy scores
