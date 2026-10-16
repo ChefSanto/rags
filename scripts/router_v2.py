@@ -109,8 +109,8 @@ def main() -> None:
     results = load_results(args.results_dir)
     per_dataset = {name: rv.collect_dataset(name, base, k, args.results_dir)
                    for name in all_names}
-    strategies = per_dataset[args.datasets[0]]["strategies"]
-    for name in args.datasets:
+    strategies = per_dataset[all_names[0]]["strategies"]
+    for name in all_names:
         if per_dataset[name]["strategies"] != strategies:
             raise SystemExit(f"strategy sets differ across datasets: {name}")
 
@@ -118,13 +118,16 @@ def main() -> None:
         return next(r for r in results
                     if r.get("dataset") == name)["config"]["dataset"]["path"]
 
+    # embedding model = whatever the dense baseline used
     model_name = next(r["config"]["models"]["embedding"] for r in results
-                      if r.get("dataset") in args.datasets
+                      if r.get("dataset") in all_names
                       and r.get("config", {}).get("models", {}).get("embedding")
                       and r["config"]["models"]["embedding"] not in (None, "hashing"))
 
-    for name in args.datasets:
-        embed_queries(per_dataset[name]["texts"], model_name)
+    # cache embeddings for ALL dataset queries up front
+    for name in all_names:
+        data = per_dataset[name]
+        embed_queries(data["texts"], model_name)
 
     cache = json.loads((ROOT / "artifacts" / "query-embeddings" /
                         f"{model_name.replace('/', '-')}.json").read_text())
@@ -179,7 +182,7 @@ def main() -> None:
                  for q in q_test) / len(q_test)
 
     train_means: dict[str, dict[str, float]] = {name: {} for name in train_names}
-    for name in args.datasets:
+    for name in train_names:
         for i, s in enumerate(strategies):
             vals = [y[i] for x, y in zip(q_train, Y_train) if x.startswith(name + ":")]
             if vals:
@@ -203,7 +206,7 @@ def main() -> None:
     train_means_all = [sum(y[i] for y in Y_train) / len(Y_train) for i in range(len(strategies))]
 
     tag = "emb+lex" if args.with_lexical else "emb"
-    lines = [f"# Router v2a ({tag}, PCA-{args.components}) — {', '.join(args.datasets)} ({args.metric})",
+    lines = [f"# Router v2a ({tag}, PCA-{args.components}) — {', '.join(all_names)} ({args.metric})",
              "", f"- train split: {args.train_split} ({len(X_train)} queries)",
              f"- test split: {args.test_split} ({len(q_test)} queries)",
              f"- strategies: {', '.join(strategies)}",
@@ -244,7 +247,7 @@ def main() -> None:
     print(report)
 
     out = Path(args.results_dir) / (
-        f"router-v2a-{tag}-{'-'.join(args.datasets)}-{args.metric}-{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}.md")
+        f"router-v2a-{tag}-{'-'.join(all_names)}-{args.metric}-{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}.md")
     out.write_text(report + "\n", encoding="utf-8")
     print(f"report saved: {out}")
 
