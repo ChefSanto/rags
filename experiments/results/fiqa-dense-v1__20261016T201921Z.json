@@ -1,0 +1,78 @@
+{
+  "experiment_id": "fiqa-dense-v1__20261016T201921Z",
+  "name": "fiqa-dense-v1",
+  "description": "Phase 4 baseline: dense retrieval (all-MiniLM-L6-v2) on FiQA. Canonical run on Kaggle GPU.\n",
+  "dataset": "fiqa",
+  "dataset_version": "1.0",
+  "retriever": "dense",
+  "retrieval_params": {},
+  "seed": 42,
+  "num_documents": 57638,
+  "num_queries": 6648,
+  "metrics": {
+    "recall_at_5": 0.552,
+    "recall_at_10": 0.6369,
+    "precision_at_10": 0.1014,
+    "mrr_at_10": 0.4323,
+    "ndcg_at_10": 0.368
+  },
+  "run_artifact": "/kaggle/working/rags/artifacts/runs/fiqa-dense-v1__20261016T201921Z.json",
+  "config": {
+    "name": "fiqa-dense-v1",
+    "description": "Phase 4 baseline: dense retrieval (all-MiniLM-L6-v2) on FiQA. Canonical run on Kaggle GPU.\n",
+    "dataset": {
+      "name": "fiqa",
+      "version": "1.0",
+      "path": "datasets/downloads/fiqa",
+      "format": "beir"
+    },
+    "retrieval": {
+      "method": "dense",
+      "top_k": 10,
+      "params": {}
+    },
+    "generator": null,
+    "models": {
+      "embedding": "sentence-transformers/all-MiniLM-L6-v2",
+      "reranker": null
+    },
+    "parameters": {
+      "seed": 42
+    },
+    "evaluation": {
+      "metrics": [
+        "recall_at_5",
+        "recall_at_10",
+        "precision_at_10",
+        "mrr_at_10",
+        "ndcg_at_10"
+      ],
+      "k_values": [
+        5,
+        10
+      ]
+    },
+    "schema_version": "1.0"
+  },
+  "metadata": {
+    "git_commit": "c3d6e833d672cda8d17eceb5a3ab1a0e5823e714",
+    "git_dirty": true,
+    "python_version": "3.13.15",
+    "platform": "Linux-6.18.48+-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "processor": "x86_64",
+    "packages": {
+      "ai-lab": "0.1.0",
+      "numpy": "2.1.3",
+      "pyyaml": "6.0.3",
+      "scipy": "1.16.3",
+      "pandas": "2.3.3",
+      "scikit-learn": "1.6.1",
+      "torch": "2.11.0+cpu",
+      "sentence-transformers": "5.7.0",
+      "pymupdf": null
+    },
+    "seed": 42,
+    "timestamp_utc": "2026-10-16T20:19:21+00:00"
+  }
+}
