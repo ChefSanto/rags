@@ -110,6 +110,14 @@ artifacts in repo `experiments/results/`.
   is unmodeled. Conclusion: v0's framing rejected; v1 uses per-strategy
   score regression with predicted-argmax routing.
 
+- **H3 second test (router v1, per-strategy score regression): marginal.**
+  Routed 0.3626 vs best uniform 0.3597 (+0.0028) and domain router
+  0.3583 (+0.0042), but only 4.9% oracle-gap recovery. Predictions are
+  calibrated at the mean (dense ~ hybrid > bm25) but per-query deviations
+  — the actual routing signal — are unpredictable from lexical-statistical
+  query features. Conclusion: this feature family is ruled out; next
+  candidates are query embeddings (v2a) and per-document properties (v2b).
+
 ## 8. Deliverables
 
 - Benchmark: multi-category corpus + profiler profiles + per-strategy scores
