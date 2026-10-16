@@ -79,8 +79,8 @@ def main() -> None:
 
     per_dataset = {name: rv.collect_dataset(name, base, k, args.results_dir)
                    for name in all_names}
-    strategies = per_dataset[args.datasets[0]]["strategies"]
-    for name in args.datasets:
+    strategies = per_dataset[all_names[0]]["strategies"]
+    for name in all_names:
         if per_dataset[name]["strategies"] != strategies:
             raise SystemExit(f"strategy sets differ across datasets: {name} has "
                              f"{per_dataset[name]['strategies']} vs {strategies}")
@@ -130,7 +130,7 @@ def main() -> None:
 
     # domain router: per-domain best by TRAIN means, applied to test
     train_means: dict[str, dict[str, float]] = {name: {} for name in train_names}
-    for name in args.datasets:
+    for name in train_names:
         for i, s in enumerate(strategies):
             vals = [y[i] for x, y in zip(q_train, Y_train)
                     if x.startswith(name + ":")]
@@ -155,7 +155,7 @@ def main() -> None:
     actual_means = Y_test_arr.mean(axis=0)
     train_means_all = [sum(y[i] for y in Y_train) / len(Y_train) for i in range(len(strategies))]
 
-    lines = [f"# Router v1 (score regression) — {', '.join(args.datasets)} ({args.metric})",
+    lines = [f"# Router v1 (score regression) — {', '.join(all_names)} ({args.metric})",
              "", f"- train split: {args.train_split} ({len(X_train)} queries)",
              f"- test split: {args.test_split} ({len(q_test)} queries)",
              f"- strategies: {', '.join(strategies)}",
@@ -194,7 +194,7 @@ def main() -> None:
     print(report)
 
     out = Path(args.results_dir) / (
-        f"router-v1-{'-'.join(args.datasets)}-{args.metric}-{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}.md")
+        f"router-v1-{'-'.join(all_names)}-{args.metric}-{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}.md")
     out.write_text(report + "\n", encoding="utf-8")
     print(f"report saved: {out}")
 
