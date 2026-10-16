@@ -72,7 +72,36 @@ interpretation failure. Error taxonomy feeds Paper 4.
 - **Query set bias** → BEIR qrels are human-judged but small; report
   per-query variance, not just means.
 
-## 7. Deliverables
+  ## 7. Results so far (Phase 4–5, 2026-10-16)
+
+Baselines: all-MiniLM-L6-v2 dense, own BM25 (inverted index, max_df skip),
+min-max score fusion hybrid (dense_weight 0.5). Evaluation: BEIR all-splits
+(train+dev+test merged), judged queries only, k=10. Canonical runs on Kaggle;
+artifacts in repo `experiments/results/`.
+
+**Per-dataset baselines (nDCG@10):**
+
+| domain | BM25 | dense | hybrid | best fixed |
+|---|---|---|---|---|
+| FiQA (finance, 6648 judged) | 0.2293 | 0.3680 | 0.3610 | dense |
+| NFCorpus (science, 3237 judged) | 0.3013 | 0.3183 | 0.3374 | hybrid |
+
+- **H1 supported**: best fixed strategy flips across domains (dense wins
+  finance, hybrid wins science); BM25's head-to-head win rate vs dense nearly
+  doubles (14.5% → 31.3%) on terminology-heavy science.
+- **H2 supported on both datasets**: per-query oracle gap +16.1% (FiQA,
+  0.4271 vs 0.3680) and +13.2% (NFCorpus, 0.3818 vs 0.3374) over best fixed.
+  Recall@10 oracle gaps: +8.9% / +5.9%. Routing signal is not domain-specific.
+- **H4 baseline measured (domain router)**: routing by domain label alone
+  buys only +1.3% nDCG (+0.8% recall) over the best uniform strategy
+  (0.3580 vs 0.3532; combined oracle ceiling 0.4123). Domain membership
+  explains almost none of the oracle headroom.
+- **The prize for H3**: the +5.4% nDCG gap between the domain router and
+  the combined oracle is what document/query properties must explain beyond
+  domain membership. First router (v0): per-query features → interpretable
+  decision tree, trained on train split, evaluated on test split.
+
+## 8. Deliverables
 
 - Benchmark: multi-category corpus + profiler profiles + per-strategy scores
   (versioned in this repo).
