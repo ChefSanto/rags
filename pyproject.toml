@@ -15,14 +15,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Real embedding models (GPU work, Kaggle, or local with enough RAM)
 ml = [
     "sentence-transformers>=2.7",
     "torch>=2.0",
 ]
-# Document profiler (PDF property extraction)
 pdf = [
     "pymupdf>=1.24",
+]
+router = [
+    "scikit-learn>=1.3",
 ]
 dev = [
     "pytest>=8.0",
