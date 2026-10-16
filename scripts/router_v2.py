@@ -109,11 +109,10 @@ def main() -> None:
         return next(r for r in results
                     if r.get("dataset") == name)["config"]["dataset"]["path"]
 
-    model_name = next(r for r in results
+    model_name = next(r["config"]["models"]["embedding"] for r in results
                       if r.get("dataset") in args.datasets
-                      and r.get("models", {}).get("embedding")
-                      and r["models"]["embedding"] not in (None, "hashing")
-                      )["models"]["embedding"]
+                      and r.get("config", {}).get("models", {}).get("embedding")
+                      and r["config"]["models"]["embedding"] not in (None, "hashing"))
 
     for name in args.datasets:
         embed_queries(per_dataset[name]["texts"], model_name)
