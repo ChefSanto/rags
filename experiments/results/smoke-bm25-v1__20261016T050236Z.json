@@ -1,0 +1,82 @@
+{
+  "experiment_id": "smoke-bm25-v1__20261016T050236Z",
+  "name": "smoke-bm25-v1",
+  "description": "Smoke test of the experiment runner: BM25 on the synthetic dataset. Verifies config -> retrieval -> metrics -> result JSON end-to-end.\n",
+  "dataset": "synthetic-smoke",
+  "dataset_version": "1.0",
+  "retriever": "bm25",
+  "retrieval_params": {
+    "k1": 1.5,
+    "b": 0.75
+  },
+  "seed": 42,
+  "num_documents": 78,
+  "num_queries": 24,
+  "metrics": {
+    "recall_at_5": 1.0,
+    "recall_at_10": 1.0,
+    "precision_at_10": 0.9417,
+    "mrr_at_10": 1.0,
+    "ndcg_at_10": 0.8272
+  },
+  "config": {
+    "name": "smoke-bm25-v1",
+    "description": "Smoke test of the experiment runner: BM25 on the synthetic dataset. Verifies config -> retrieval -> metrics -> result JSON end-to-end.\n",
+    "dataset": {
+      "name": "synthetic-smoke",
+      "version": "1.0",
+      "path": "datasets/synthetic-smoke",
+      "format": "beir"
+    },
+    "retrieval": {
+      "method": "bm25",
+      "top_k": 10,
+      "params": {
+        "k1": 1.5,
+        "b": 0.75
+      }
+    },
+    "models": {
+      "embedding": null,
+      "reranker": null
+    },
+    "parameters": {
+      "seed": 42
+    },
+    "evaluation": {
+      "metrics": [
+        "recall_at_5",
+        "recall_at_10",
+        "precision_at_10",
+        "mrr_at_10",
+        "ndcg_at_10"
+      ],
+      "k_values": [
+        5,
+        10
+      ]
+    },
+    "schema_version": "1.0"
+  },
+  "metadata": {
+    "git_commit": "953a380e4f5eb11cc59c5de09d4389831335bd3c",
+    "git_dirty": false,
+    "python_version": "3.13.15",
+    "platform": "Linux-6.18.48+-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "processor": "x86_64",
+    "packages": {
+      "ai-lab": "0.1.0",
+      "numpy": "2.1.3",
+      "pyyaml": "6.0.3",
+      "scipy": "1.16.3",
+      "pandas": "2.3.3",
+      "scikit-learn": "1.6.1",
+      "torch": "2.11.0+cpu",
+      "sentence-transformers": "5.7.0",
+      "pymupdf": null
+    },
+    "seed": 42,
+    "timestamp_utc": "2026-10-16T05:02:36+00:00"
+  }
+}
