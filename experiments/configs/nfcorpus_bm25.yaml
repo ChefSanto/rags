@@ -1,0 +1,32 @@
+experiment:
+  name: nfcorpus-bm25-v1
+  description: >
+    Phase 5 / H4: BM25 on NFCorpus (science domain). Second domain for
+    domain-routing vs property-routing comparison.
+
+dataset:
+  name: nfcorpus
+  version: "1.0"
+  path: datasets/downloads/nfcorpus
+
+retrieval:
+  method: bm25
+  top_k: 10
+  params:
+    k1: 1.5
+    b: 0.75
+
+models:
+  embedding: null
+
+parameters:
+  seed: 42
+
+evaluation:
+  metrics:
+    - recall_at_5
+    - recall_at_10
+    - precision_at_10
+    - mrr_at_10
+    - ndcg_at_10
+  k_values: [5, 10]
