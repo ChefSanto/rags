@@ -54,13 +54,22 @@ def assemble_regression(data: dict, split_qrels: dict[str, dict[str, int]]):
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--datasets", nargs="+", required=True)
+    parser.add_argument("--datasets", nargs="+", default=None,
+                        help="datasets for BOTH train and test (or use --train-datasets/--test-datasets)")
+    parser.add_argument("--train-datasets", nargs="+", default=None)
+    parser.add_argument("--test-datasets", nargs="+", default=None)
     parser.add_argument("--metric", default="ndcg_at_10")
     parser.add_argument("--train-split", default="train")
     parser.add_argument("--test-split", default="test")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--results-dir", default=str(ROOT / "experiments" / "results"))
     args = parser.parse_args()
+
+    train_names = args.train_datasets or args.datasets
+    test_names = args.test_datasets or args.datasets
+    if not train_names or not test_names:
+        raise SystemExit("provide --datasets, or both --train-datasets and --test-datasets")
+    all_names = list(dict.fromkeys(train_names + test_names))
 
     base, k = parse_metric(args.metric)
     if base not in PER_QUERY:
@@ -69,7 +78,7 @@ def main() -> None:
     from sklearn.ensemble import GradientBoostingRegressor
 
     per_dataset = {name: rv.collect_dataset(name, base, k, args.results_dir)
-                   for name in args.datasets}
+                   for name in all_names}
     strategies = per_dataset[args.datasets[0]]["strategies"]
     for name in args.datasets:
         if per_dataset[name]["strategies"] != strategies:
@@ -83,10 +92,12 @@ def main() -> None:
     X_train, Y_train, q_train = [], [], []
     X_test, Y_test, q_test = [], [], []
     test_domains: dict[str, str] = {}
-    for name in args.datasets:
+    for name in train_names:
         data = per_dataset[name]
         X, Y, q = assemble_regression(data, rv.load_split_qrels(dataset_dir_of(name), args.train_split))
         X_train += X; Y_train += Y; q_train += [f"{name}:{x}" for x in q]
+    for name in test_names:
+        data = per_dataset[name]
         X, Y, q = assemble_regression(data, rv.load_split_qrels(dataset_dir_of(name), args.test_split))
         X_test += X; Y_test += Y; q_test += q
         for x in q:
@@ -118,7 +129,7 @@ def main() -> None:
                  for q in q_test) / len(q_test)
 
     # domain router: per-domain best by TRAIN means, applied to test
-    train_means: dict[str, dict[str, float]] = {name: {} for name in args.datasets}
+    train_means: dict[str, dict[str, float]] = {name: {} for name in train_names}
     for name in args.datasets:
         for i, s in enumerate(strategies):
             vals = [y[i] for x, y in zip(q_train, Y_train)
@@ -126,9 +137,14 @@ def main() -> None:
             if vals:
                 train_means[name][s] = sum(vals) / len(vals)
     dom_route = {name: max(train_means[name], key=train_means[name].get)
-                 for name in args.datasets if train_means[name]}
-    domain_router = sum(score_of(q, dom_route[test_domains[q]]) for q in q_test
-                        if test_domains[q] in dom_route) / len(q_test)
+                 for name in train_names if train_means[name]}
+    if all(test_domains[q] in dom_route for q in q_test):
+        domain_router = sum(score_of(q, dom_route[test_domains[q]]) for q in q_test) / len(q_test)
+        domain_router_s = f"{domain_router:.4f}"
+        vs_domain = f"{routed - domain_router:+.4f}"
+    else:
+        domain_router_s = "n/a (test domains unseen in train)"
+        vs_domain = "n/a"
 
     best_uniform_s = max(uniform, key=uniform.get)
     recovery = ((routed - uniform[best_uniform_s]) / (oracle - uniform[best_uniform_s])
@@ -149,11 +165,11 @@ def main() -> None:
              "| router | score |", "|---|---|",
              f"| **routed (v1 regression)** | **{routed:.4f}** |"]
     lines += [f"| uniform {s} | {v:.4f} |" for s, v in sorted(uniform.items(), key=lambda kv: -kv[1])]
-    lines += [f"| domain router {dom_route} | {domain_router:.4f} |",
+    lines += [f"| domain router {dom_route} | {domain_router_s} |",
               f"| oracle (ceiling) | {oracle:.4f} |", "",
               f"- routing gain over best uniform ({best_uniform_s}): "
               f"**{routed - uniform[best_uniform_s]:+.4f}**",
-              f"- vs domain router: {routed - domain_router:+.4f}",
+              f"- vs domain router: {vs_domain}",
               f"- oracle-gap recovery vs best uniform: {recovery:.1%}",
               f"- gap remaining to oracle: {oracle - routed:+.4f}", "",
               "## Prediction diagnostics (test)", "",
