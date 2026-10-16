@@ -101,6 +101,15 @@ artifacts in repo `experiments/results/`.
   domain membership. First router (v0): per-query features → interpretable
   decision tree, trained on train split, evaluated on test split.
 
+  - **H3 first test (router v0, query features -> decision tree): NEGATIVE.**
+  Routed test nDCG 0.2651 vs best uniform 0.3597; tree collapsed to BM25
+  (96% of predictions). Mechanisms: (1) argmax labels with alphabetical
+  tie-break bias toward bm25 under dense train-split annotations; (2)
+  train/test query distribution shift (train splits favor lexical
+  matching); (3) classification ignores score margins, so routing regret
+  is unmodeled. Conclusion: v0's framing rejected; v1 uses per-strategy
+  score regression with predicted-argmax routing.
+
 ## 8. Deliverables
 
 - Benchmark: multi-category corpus + profiler profiles + per-strategy scores
