@@ -59,21 +59,43 @@ def mrr_at_k(run: Run, qrels: Qrels, k: int) -> float:
     return total / len(qids)
 
 
+def _dcg(gains: list[int]) -> float:
+    return sum(g / math.log2(i + 2) for i, g in enumerate(gains))
+
+
 def ndcg_at_k(run: Run, qrels: Qrels, k: int) -> float:
     qids = _judged(run, qrels)
     if not qids:
         return 0.0
-
-    def dcg(gains: list[int]) -> float:
-        return sum(g / math.log2(i + 2) for i, g in enumerate(gains))
-
     total = 0.0
     for qid in qids:
         gains = [qrels[qid].get(d, 0) for d in run[qid][:k]]
         ideal = sorted((r for r in qrels[qid].values() if r >= 1), reverse=True)[:k]
-        denom = dcg(ideal)
-        total += dcg(gains) / denom if denom else 0.0
+        denom = _dcg(ideal)
+        total += _dcg(gains) / denom if denom else 0.0
     return total / len(qids)
+
+
+# --- per-query variants (oracle / routing analysis) ---
+# Same formulas as above, returned per query. mean(per_query_x) == x for all.
+
+
+def per_query_recall_at_k(run: Run, qrels: Qrels, k: int) -> dict[str, float]:
+    out = {}
+    for qid in _judged(run, qrels):
+        relevant = {d for d, r in qrels[qid].items() if r >= 1}
+        out[qid] = 1.0 if any(d in relevant for d in run[qid][:k]) else 0.0
+    return out
+
+
+def per_query_ndcg_at_k(run: Run, qrels: Qrels, k: int) -> dict[str, float]:
+    out = {}
+    for qid in _judged(run, qrels):
+        gains = [qrels[qid].get(d, 0) for d in run[qid][:k]]
+        ideal = sorted((r for r in qrels[qid].values() if r >= 1), reverse=True)[:k]
+        denom = _dcg(ideal)
+        out[qid] = _dcg(gains) / denom if denom else 0.0
+    return out
 
 
 # name (without _at_k suffix) -> function(run, qrels, k)

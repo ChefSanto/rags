@@ -6,6 +6,8 @@ Usage (see scripts/run_experiment.py):
 Every execution writes one JSON file to experiments/results/ containing the
 full config snapshot, metrics, and reproducibility metadata. Results are
 committed to git so experiments are traceable and comparable over time.
+Ranked runs (full per-query doc lists) are written to artifacts/runs/
+(gitignored) and referenced from the result file.
 """
 
 from __future__ import annotations
@@ -47,8 +49,17 @@ def run_experiment(
     metrics = compute_metrics(run, dataset.qrels, spec.evaluation.metrics)
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    experiment_id = f"{spec.name}__{timestamp}"
+
+    # ranked runs are too large for git; saved as artifacts (gitignored) and
+    # referenced from the result file — oracle/routing analyses read these
+    artifact_dir = Path(repo_root or ".") / "artifacts" / "runs"
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    run_artifact = artifact_dir / f"{experiment_id}.json"
+    run_artifact.write_text(json.dumps(run) + "\n", encoding="utf-8")
+
     result = {
-        "experiment_id": f"{spec.name}__{timestamp}",
+        "experiment_id": experiment_id,
         "name": spec.name,
         "description": spec.description,
         "dataset": dataset.name,
@@ -59,6 +70,7 @@ def run_experiment(
         "num_documents": len(dataset.documents),
         "num_queries": len(dataset.queries),
         "metrics": metrics,
+        "run_artifact": str(run_artifact),
         "config": spec_to_dict(spec),
         "metadata": collect(spec.seed, repo_root=repo_root),
     }
