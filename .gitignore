@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.pytest_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# OS
+.DS_Store
+
+# Large dataset downloads (manifest.yaml tracks what belongs here)
+datasets/downloads/
+
+# Large artifacts (models, indices, generated PDFs)
+artifacts/
+
+# Editor
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.*

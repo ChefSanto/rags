@@ -1,0 +1,36 @@
+experiment:
+  name: smoke-hybrid-v1
+  description: >
+    Smoke test of hybrid retrieval: min-max normalized fusion of BM25 and
+    dense (hashing fallback embedder — see smoke_dense.yaml caveat).
+
+dataset:
+  name: synthetic-smoke
+  version: "1.0"
+  path: datasets/synthetic-smoke
+
+retrieval:
+  method: hybrid
+  top_k: 10
+  params:
+    dense_weight: 0.5
+    bm25:
+      k1: 1.5
+      b: 0.75
+    dense:
+      embedding: hashing
+
+models:
+  embedding: hashing
+
+parameters:
+  seed: 42
+
+evaluation:
+  metrics:
+    - recall_at_5
+    - recall_at_10
+    - precision_at_10
+    - mrr_at_10
+    - ndcg_at_10
+  k_values: [5, 10]

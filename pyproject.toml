@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-lab"
+version = "0.1.0"
+description = "Reproducible experimentation platform for RAG research"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "pyyaml>=6.0",
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+# Real embedding models (GPU work, Kaggle, or local with enough RAM)
+ml = [
+    "sentence-transformers>=2.7",
+    "torch>=2.0",
+]
+# Document profiler (PDF property extraction)
+pdf = [
+    "pymupdf>=1.24",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+]
+
+[tool.setuptools.packages.find]
+include = ["core*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

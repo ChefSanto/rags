@@ -1,0 +1,32 @@
+experiment:
+  name: smoke-dense-v1
+  description: >
+    Smoke test of dense retrieval. Uses the offline hashing embedder so it
+    runs anywhere; scores are NOT research-grade. For real runs set
+    models.embedding to e.g. sentence-transformers/all-MiniLM-L6-v2 (see
+    experiments/configs/dense_minilm_fiqa.yaml pattern and docs/kaggle.md).
+
+dataset:
+  name: synthetic-smoke
+  version: "1.0"
+  path: datasets/synthetic-smoke
+
+retrieval:
+  method: dense
+  top_k: 10
+  params: {}
+
+models:
+  embedding: hashing
+
+parameters:
+  seed: 42
+
+evaluation:
+  metrics:
+    - recall_at_5
+    - recall_at_10
+    - precision_at_10
+    - mrr_at_10
+    - ndcg_at_10
+  k_values: [5, 10]

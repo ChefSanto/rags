@@ -1,0 +1,41 @@
+# Dataset registry. Experiments reference datasets by (name, version) —
+# never by hardcoded paths. Loader format "beir" expects:
+#   <path>/corpus.jsonl, <path>/queries.jsonl, <path>/qrels.tsv
+datasets:
+  synthetic-smoke:
+    version: "1.0"
+    path: datasets/synthetic-smoke
+    format: beir
+    description: >
+      Tiny deterministic smoke-test dataset (scripts/make_synthetic_dataset.py).
+      For pipeline verification only — NOT for research numbers.
+    license: n/a (generated)
+
+  fiqa:
+    version: "1.0"
+    path: datasets/downloads/fiqa
+    format: beir
+    description: >
+      FiQA2018 (BEIR): financial-domain opinion-based QA with relevance
+      judgments. Primary finance dataset for property-routing experiments.
+    url: https://huggingface.co/datasets/BeIR/fiqa
+    license: MIT
+
+  nfcorpus:
+    version: "1.0"
+    path: datasets/downloads/nfcorpus
+    format: beir
+    description: >
+      NFCorpus (BEIR): biomedical scientific documents with graded relevance
+      judgments (good for nDCG). Science-domain counterpart to FiQA.
+    url: https://huggingface.co/datasets/BeIR/nfcorpus
+    license: CC BY-SA 4.0
+
+  # Multimodal phase (Phase 9): PDF-based sets for document profiling +
+  # tables/figures-heavy retrieval. Add arXiv papers and annual reports with
+  # qrels before Phase 10 experiments.
+  # arxiv-papers:
+  #   version: "1.0"
+  #   path: datasets/downloads/arxiv-papers
+  #   format: beir
+  #   description: Scientific papers as PDFs; profile with core/profiling.
