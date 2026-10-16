@@ -1,4 +1,4 @@
-"""The experiment runner: config → dataset → retriever → run → metrics → result.
+"""The experiment runner: config -> dataset -> retriever -> run -> metrics -> result.
 
 Usage (see scripts/run_experiment.py):
     python scripts/run_experiment.py --config experiments/configs/smoke_bm25.yaml
@@ -31,13 +31,18 @@ def run_experiment(
     spec = load_spec(config_path)
     dataset = load_beir(spec.dataset.path, name=spec.dataset.name, version=spec.dataset.version)
 
+    print(f"indexing {len(dataset.documents)} documents...")
     retriever = build_retriever(spec)
     retriever.index(dataset.documents)
 
     run: dict[str, list[str]] = {}
-    for query in dataset.queries:
+    n = len(dataset.queries)
+    for qi, query in enumerate(dataset.queries, start=1):
         hits = retriever.search(query.text, top_k=spec.retrieval.top_k)
         run[query.id] = [doc_id for doc_id, _ in hits]
+        if qi % 50 == 0 or qi == n:
+            print(f"  queried {qi}/{n}")
+    print("evaluating...")
 
     metrics = compute_metrics(run, dataset.qrels, spec.evaluation.metrics)
 

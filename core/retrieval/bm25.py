@@ -4,6 +4,10 @@ Uses an inverted index: each query only scores documents containing at least
 one query term, so a search costs O(postings touched) instead of
 O(corpus size). With FiQA (~57k docs) the naive scan takes many minutes;
 the indexed version takes seconds.
+
+Query terms occurring in more than `max_df_frac` of all documents are skipped:
+their idf is near zero (they cannot discriminate between documents), but
+their postings lists dominate runtime on natural-language queries.
 """
 
 from __future__ import annotations
@@ -22,9 +26,13 @@ def tokenize(text: str) -> list[str]:
 
 
 class BM25:
-    def __init__(self, k1: float = 1.5, b: float = 0.75):
+    def __init__(self, k1: float = 1.5, b: float = 0.75, max_df_frac: float = 0.5):
         self.k1 = k1
         self.b = b
+        # query terms occurring in more than this fraction of documents are
+        # skipped: their idf is near zero (non-discriminative) but their
+        # postings lists dominate runtime on natural-language queries
+        self.max_df_frac = max_df_frac
 
     def index(self, documents: list[Document]) -> None:
         self._doc_ids = [d.id for d in documents]
@@ -38,6 +46,7 @@ class BM25:
         ]
 
         n_docs = len(documents)
+        self._max_df = self.max_df_frac * n_docs
         df: Counter = Counter()
         tf = [Counter(t) for t in doc_tokens]
         for tokens in doc_tokens:
@@ -57,6 +66,8 @@ class BM25:
         for t in set(tokenize(query)):  # set: repeated query terms score once
             idf = self._idf.get(t)
             if idf is None:
+                continue
+            if len(self._postings[t]) > self._max_df:  # ultra-common term
                 continue
             for i, f in self._postings.get(t, ()):
                 scores[i] = scores.get(i, 0.0) + idf * f * (self.k1 + 1.0) / (
