@@ -30,6 +30,8 @@ if (!file) {
 }
 const limitIdx = rest.indexOf("--limit");
 const limit = limitIdx >= 0 ? parseInt(rest[limitIdx + 1], 10) : Infinity;
+const skipIdx = rest.indexOf("--skip");
+const skip = skipIdx >= 0 ? parseInt(rest[skipIdx + 1], 10) : 0;
 
 const AI_URL = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/ai/run/@cf/baai/bge-small-en-v1.5`;
 const VZ_URL = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/vectorize/v2/indexes/${INDEX}/upsert`;
@@ -44,13 +46,14 @@ for await (const line of rl) {
   if (!line.trim()) continue;
   const d = JSON.parse(line);
   docs.push({ id: String(d._id), text: String(d.text).slice(0, 2000) });
-  if (docs.length >= limit) break;
+  if (docs.length >= skip + limit) break;
 }
-console.log(`loaded ${docs.length} docs`);
+console.log(`loaded ${docs.length} docs; skipping ${skip}, processing from doc ${skip}`);
 
+const todo = docs.slice(skip, skip + limit);
 const BATCH = 50;
-for (let i = 0; i < docs.length; i += BATCH) {
-  const batch = docs.slice(i, i + BATCH);
+for (let i = 0; i < todo.length; i += BATCH) {
+  const batch = todo.slice(i, i + BATCH);
 
   const er = await fetch(AI_URL, {
     method: "POST",
@@ -75,6 +78,6 @@ for (let i = 0; i < docs.length; i += BATCH) {
   if (!ur.ok) {
     throw new Error(`upsert failed at ${i}: ${ur.status} ${JSON.stringify(uj).slice(0, 300)}`);
   }
-  console.log(`upserted ${Math.min(i + BATCH, docs.length)}/${docs.length}`);
+  console.log(`upserted ${Math.min(i + BATCH, todo.length)}/${todo.length}`);
 }
 console.log("done");
