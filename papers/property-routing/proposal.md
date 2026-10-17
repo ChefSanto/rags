@@ -161,6 +161,15 @@ artifacts in repo `experiments/results/`.
   Batched-generation left-padding bug found via transformers warning and
   fixed (BM25 grounding +0.054 after fix).
 
+- **H3 fourth test (router v3, per-corpus pseudo-labeled): negative, with
+  mechanism.** Routed 0.2603 vs best uniform 0.3616 (recovery -180.8%).
+  Diagnosis: document-derived pseudo-queries are lexical copies of their
+  source docs, so pseudo-label means collapse to BM25 (0.94-0.96) and the
+  trained router routes 95-98% to BM25. Conclusion: pseudo-labels must be
+  question-distributed, not document-literal. Next: v4 uses an LLM
+  (Qwen2.5-3B) to generate natural questions per document, then the same
+  per-corpus pipeline.
+
 ## 8. Deliverables
 
 - Benchmark: multi-category corpus + profiler profiles + per-strategy scores
