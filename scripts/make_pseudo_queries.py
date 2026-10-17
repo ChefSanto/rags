@@ -18,7 +18,9 @@ pseudo-dataset, ready for run_experiment.py.
 
 Honest risk (stated for the report): document-derived queries are lexically
 easy and may over-favor BM25. That bias is itself measurable — the routed
-result vs uniform comparison exposes it.
+result vs uniform comparison exposes it. (Confirmed by router-v3 report:
+pseudo-label means collapse to BM25 0.94-0.96; see make_llm_queries.py for the
+question-distributed fix.)
 
 Usage:
     python scripts/make_pseudo_queries.py datasets/downloads/fiqa \
@@ -90,6 +92,18 @@ def pseudo_queries(text: str, rng: random.Random, per_doc: int) -> list[str]:
     return out
 
 
+def write_configs(dataset_name: str, out: Path) -> None:
+    """Write the three strategy configs for a pseudo-dataset (shared with make_llm_queries)."""
+    for strat in ("bm25", "dense", "hybrid"):
+        block = STRATEGY_PARAM_BLOCKS[strat]
+        params_yaml = "  params: {}" if block is None else "  params:\n" + block
+        cfg = CONFIG_TEMPLATE.format(dset=dataset_name, strat=strat,
+                                     outdir=str(out), params_yaml=params_yaml)
+        cfg_path = ROOT / "experiments" / "configs" / f"pseudo_{dataset_name}_{strat}.yaml"
+        cfg_path.write_text(cfg, encoding="utf-8")
+        print("wrote", cfg_path.name)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -132,14 +146,7 @@ def main() -> None:
                 n_queries += 1
             n_docs += 1
 
-    for strat in ("bm25", "dense", "hybrid"):
-        block = STRATEGY_PARAM_BLOCKS[strat]
-        params_yaml = "  params: {}" if block is None else "  params:\n" + block
-        cfg = CONFIG_TEMPLATE.format(dset=args.dataset_name, strat=strat,
-                                     outdir=str(out), params_yaml=params_yaml)
-        cfg_path = ROOT / "experiments" / "configs" / f"pseudo_{args.dataset_name}_{strat}.yaml"
-        cfg_path.write_text(cfg, encoding="utf-8")
-        print("wrote", cfg_path.name)
+    write_configs(args.dataset_name, out)
 
     print(f"done: {n_docs} docs -> {n_queries} pseudo-queries in {out}")
 

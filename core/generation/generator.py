@@ -3,10 +3,13 @@ dependencies are only needed when a config actually enables generation)."""
 
 
 class HFGenerator:
-    def __init__(self, model_name: str, max_new_tokens: int = 256, temperature: float = 0.0):
+    def __init__(self, model_name: str, max_new_tokens: int = 256,
+                 temperature: float = 0.0, chat: bool = False):
         self.model_name = model_name
         self.max_new_tokens = max_new_tokens
         self.temperature = temperature
+        # chat=True wraps prompts in the model's chat template (instruct models)
+        self.chat = chat
 
     def generate(self, prompts: dict[str, str]) -> dict[str, str]:
         import torch
@@ -21,13 +24,22 @@ class HFGenerator:
         )
         model.eval()
 
+        def render(p: str) -> str:
+            if self.chat:
+                return tok.apply_chat_template(
+                    [{"role": "user", "content": p}],
+                    tokenize=False,
+                    add_generation_prompt=True,
+                )
+            return p
+
         out: dict[str, str] = {}
         qids = list(prompts)
         batch_size = 8
         for i in range(0, len(qids), batch_size):
             batch = qids[i : i + batch_size]
             enc = tok(
-                [prompts[q] for q in batch],
+                [render(prompts[q]) for q in batch],
                 return_tensors="pt",
                 padding=True,
                 truncation=True,
@@ -47,5 +59,5 @@ class HFGenerator:
         return out
 
 
-def get_generator(spec) -> HFGenerator:
-    return HFGenerator(spec.model, spec.max_new_tokens, spec.temperature)
+def get_generator(spec, chat: bool = False) -> HFGenerator:
+    return HFGenerator(spec.model, spec.max_new_tokens, spec.temperature, chat=chat)
