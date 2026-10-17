@@ -16,8 +16,13 @@ venv/
 # Large dataset downloads (manifest.yaml tracks what belongs here)
 datasets/downloads/
 
-# Large artifacts (models, indices, generated PDFs)
-artifacts/
+# Artifacts: run artifacts are SMALL and COMMITTED (offline analyses work from
+# a fresh clone). Everything else stays gitignored.
+artifacts/*
+!artifacts/runs/
+artifacts/answers/
+artifacts/corpus-stats/
+artifacts/query-embeddings/
 
 # Editor
 .vscode/
