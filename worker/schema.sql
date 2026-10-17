@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS query_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  question TEXT NOT NULL,
+  answer TEXT NOT NULL,
+  num_sources INTEGER NOT NULL,
+  elapsed_ms INTEGER NOT NULL,
+  created_at TEXT NOT NULL
+);

@@ -1,0 +1,19 @@
+name = "ai-lab-worker"
+main = "src/index.js"
+compatibility_date = "2024-09-01"
+
+[ai]
+binding = "AI"
+
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "ai-lab-corpus"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ai-lab"
+database_id = "170f8fe2-4a07-4636-952a-2cb826fc8786"
+
+[vars]
+TOP_K = "5"
+MAX_CONTEXT_CHARS = "3000"
