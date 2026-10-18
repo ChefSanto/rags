@@ -1,13 +1,13 @@
 /**
- * AI Lab worker — the serving layer of the working RAG.
- *
- * POST /query  {question} -> embed -> Vectorize retrieve -> Llama generate -> log to D1
- * GET  /health
- *
- * Retrieval/generation models are Cloudflare-native (BGE-small embeddings,
- * Llama-3.1-8B-instruct) — NOT the lab's benchmarked MiniLM/Qwen stack. The
- * lab remains the source of benchmark truth.
+ * AI Lab worker — serving layer of the working RAG.
+ * POST /query | GET /logs | GET /health   (CORS-enabled for the dashboard)
  */
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
 
 const PROMPT = (ctx, q) =>
   `Answer the question using only the context below. ` +
@@ -16,17 +16,33 @@ const PROMPT = (ctx, q) =>
 
 export default {
   async fetch(request, env) {
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: CORS });
+    }
     const url = new URL(request.url);
-    if (request.method === "POST" && url.pathname === "/query") {
-      return handleQuery(request, env);
+    let resp;
+    try {
+      if (request.method === "POST" && url.pathname === "/query") {
+        resp = await handleQuery(request, env);
+      } else if (url.pathname === "/logs") {
+        resp = await handleLogs(url, env);
+      } else if (url.pathname === "/health") {
+        resp = Response.json({ ok: true, service: "ai-lab-worker" });
+      } else {
+        resp = Response.json(
+          { error: "POST /query | GET /logs | GET /health" },
+          { status: 404 }
+        );
+      }
+    } catch (e) {
+      resp = Response.json(
+        { error: String((e && e.message) || e) },
+        { status: 500 }
+      );
     }
-    if (url.pathname === "/health") {
-      return Response.json({ ok: true, service: "ai-lab-worker" });
-    }
-    return Response.json(
-      { error: "POST /query with JSON body {question}" },
-      { status: 404 }
-    );
+    const h = new Headers(resp.headers);
+    for (const [k, v] of Object.entries(CORS)) h.set(k, v);
+    return new Response(resp.body, { status: resp.status, headers: h });
   },
 };
 
@@ -43,7 +59,7 @@ async function handleQuery(request, env) {
     return Response.json({ error: "missing 'question'" }, { status: 400 });
   }
 
-  // 1. embed the question — same model used at upload time
+  // 1. embed — same model used at upload time
   const emb = await env.AI.run("@cf/baai/bge-small-en-v1.5", { text: [question] });
   const vector = emb.data[0];
 
@@ -52,7 +68,7 @@ async function handleQuery(request, env) {
   const res = await env.VECTORIZE.query(vector, { topK, returnMetadata: "all" });
   const hits = res.matches || [];
 
-  // 3. build context from retrieved texts (stored as metadata at upload)
+  // 3. context from retrieved texts
   const budget = parseInt(env.MAX_CONTEXT_CHARS || "3000", 10);
   let context = "";
   let used = 0;
@@ -75,12 +91,12 @@ async function handleQuery(request, env) {
       },
       { role: "user", content: PROMPT(context || "(no documents retrieved)", question) },
     ],
-    max_tokens: 300,
+    max_tokens: parseInt(env.MAX_TOKENS || "300", 10),
   });
   const answer = (gen.response || "").trim();
   const elapsed_ms = Date.now() - t0;
 
-  // 5. log to D1 (best-effort — a logging failure must not break the query)
+  // 5. log (best-effort)
   try {
     await env.DB.prepare(
       `INSERT INTO query_logs (question, answer, num_sources, elapsed_ms, created_at)
@@ -93,4 +109,15 @@ async function handleQuery(request, env) {
   }
 
   return Response.json({ answer, sources, elapsed_ms });
+}
+
+async function handleLogs(url, env) {
+  const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 200);
+  const { results } = await env.DB.prepare(
+    `SELECT id, question, answer, num_sources, elapsed_ms, created_at
+     FROM query_logs ORDER BY id DESC LIMIT ?`
+  )
+    .bind(limit)
+    .all();
+  return Response.json({ logs: results });
 }
