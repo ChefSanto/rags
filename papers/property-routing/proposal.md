@@ -170,6 +170,14 @@ artifacts in repo `experiments/results/`.
   (Qwen2.5-3B) to generate natural questions per document, then the same
   per-corpus pipeline.
 
+  - **H3 final test (router v4, LLM-generated question pseudo-labels): much
+  improved, still short of best-uniform.** Weighted routed 0.3469 vs best
+  uniform 0.3597 (recovery -22.2%, vs v3's -180.8%). Pseudo-label means
+  compressed (hybrid now competitive), routing distribution plausible. The
+  per-query deviation signal remains non-transferable from any constructed
+  training distribution. Query-side routing conclusion: real but not
+  harvestable with these strategies/features/labels.
+
 ## 8. Deliverables
 
 - Benchmark: multi-category corpus + profiler profiles + per-strategy scores
