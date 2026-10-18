@@ -1,0 +1,35 @@
+experiment:
+  name: nfcorpus-pseudo-hybrid-v1
+  description: >
+    Pseudo-labeled routing training data for nfcorpus: strategy scores on
+    document-derived pseudo-queries (router v3, H3).
+
+dataset:
+  name: pseudo-nfcorpus
+  version: "1.0"
+  path: /kaggle/working/rags/datasets/pseudo-nfcorpus
+
+retrieval:
+  method: hybrid
+  top_k: 10
+  params:
+    dense_weight: 0.5
+    bm25:
+      k1: 1.5
+      b: 0.75
+    dense:
+      embedding: sentence-transformers/all-MiniLM-L6-v2
+models:
+  embedding: sentence-transformers/all-MiniLM-L6-v2
+
+parameters:
+  seed: 42
+
+evaluation:
+  metrics:
+    - recall_at_5
+    - recall_at_10
+    - precision_at_10
+    - mrr_at_10
+    - ndcg_at_10
+  k_values: [5, 10]

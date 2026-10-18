@@ -1,0 +1,29 @@
+experiment:
+  name: fiqa-pseudo-dense-v1
+  description: >
+    Pseudo-labeled routing training data for fiqa: strategy scores on
+    document-derived pseudo-queries (router v3, H3).
+
+dataset:
+  name: pseudo-fiqa
+  version: "1.0"
+  path: /kaggle/working/rags/datasets/pseudo-fiqa
+
+retrieval:
+  method: dense
+  top_k: 10
+  params: {}
+models:
+  embedding: sentence-transformers/all-MiniLM-L6-v2
+
+parameters:
+  seed: 42
+
+evaluation:
+  metrics:
+    - recall_at_5
+    - recall_at_10
+    - precision_at_10
+    - mrr_at_10
+    - ndcg_at_10
+  k_values: [5, 10]
