@@ -1,0 +1,106 @@
+{
+  "experiment_id": "fiqa-hybrid-qwen-v1__20261019T080639Z",
+  "name": "fiqa-hybrid-qwen-v1",
+  "description": "Working-RAG comparison: hybrid BM25+dense retrieval (top-5) + Qwen2.5-3B-Instruct on the same 100-query slice. Third point of the answer-grounding vs retrieval-strategy comparison.\n",
+  "dataset": "fiqa",
+  "dataset_version": "1.0",
+  "retriever": "hybrid",
+  "retrieval_params": {
+    "dense_weight": 0.5,
+    "bm25": {
+      "k1": 1.5,
+      "b": 0.75
+    },
+    "dense": {
+      "embedding": "sentence-transformers/all-MiniLM-L6-v2"
+    }
+  },
+  "seed": 42,
+  "num_documents": 57638,
+  "num_queries": 6648,
+  "metrics": {
+    "recall_at_5": 0.5432,
+    "recall_at_10": 0.5432,
+    "precision_at_10": 0.0765,
+    "mrr_at_10": 0.4055,
+    "ndcg_at_10": 0.3222,
+    "answer_grounding": 0.571,
+    "answer_avg_chars": 958.4
+  },
+  "run_artifact": "/kaggle/working/rags/artifacts/runs/fiqa-hybrid-qwen-v1__20261019T080639Z.json",
+  "config": {
+    "name": "fiqa-hybrid-qwen-v1",
+    "description": "Working-RAG comparison: hybrid BM25+dense retrieval (top-5) + Qwen2.5-3B-Instruct on the same 100-query slice. Third point of the answer-grounding vs retrieval-strategy comparison.\n",
+    "dataset": {
+      "name": "fiqa",
+      "version": "1.0",
+      "path": "datasets/downloads/fiqa",
+      "format": "beir"
+    },
+    "retrieval": {
+      "method": "hybrid",
+      "top_k": 5,
+      "params": {
+        "dense_weight": 0.5,
+        "bm25": {
+          "k1": 1.5,
+          "b": 0.75
+        },
+        "dense": {
+          "embedding": "sentence-transformers/all-MiniLM-L6-v2"
+        }
+      }
+    },
+    "generator": {
+      "model": "Qwen/Qwen2.5-3B-Instruct",
+      "max_new_tokens": 200,
+      "temperature": 0.0,
+      "limit": 100,
+      "max_context_chars": 3000,
+      "prompt_template": null
+    },
+    "models": {
+      "embedding": "sentence-transformers/all-MiniLM-L6-v2",
+      "reranker": null
+    },
+    "parameters": {
+      "seed": 42
+    },
+    "evaluation": {
+      "metrics": [
+        "recall_at_5",
+        "recall_at_10",
+        "precision_at_10",
+        "mrr_at_10",
+        "ndcg_at_10"
+      ],
+      "k_values": [
+        5,
+        10
+      ]
+    },
+    "schema_version": "1.0"
+  },
+  "metadata": {
+    "git_commit": "6f8cfa4083d02db96af8413e6e513810188661ae",
+    "git_dirty": true,
+    "python_version": "3.13.15",
+    "platform": "Linux-6.18.48+-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "processor": "x86_64",
+    "packages": {
+      "ai-lab": "0.1.0",
+      "numpy": "2.1.3",
+      "pyyaml": "6.0.3",
+      "scipy": "1.16.3",
+      "pandas": "2.3.3",
+      "scikit-learn": "1.6.1",
+      "torch": "2.11.0+cu128",
+      "sentence-transformers": "5.7.0",
+      "pymupdf": null
+    },
+    "seed": 42,
+    "timestamp_utc": "2026-10-19T08:06:39+00:00"
+  },
+  "answers_artifact": "/kaggle/working/rags/artifacts/answers/fiqa-hybrid-qwen-v1__20261019T080639Z.json"
+}
