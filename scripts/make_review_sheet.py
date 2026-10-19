@@ -11,9 +11,9 @@ correct-rates for the paper's human-eval row.
 
 Usage:
     python scripts/make_review_sheet.py \
-        --answers 'artifacts/answers/fiqa-bm25-qwen-v1__*.json' \
-                   'artifacts/answers/fiqa-dense-qwen-v1__*.json' \
-                   'artifacts/answers/fiqa-hybrid-qwen-v1__*.json' \
+        --answers 'experiments/results/fiqa-bm25-qwen-v1__*.json' \
+                   'experiments/results/fiqa-dense-qwen-v1__*.json' \
+                   'experiments/results/fiqa-hybrid-qwen-v1__*.json' \
         --runs 'artifacts/runs/fiqa-bm25-qwen-v1__*.json' \
                'artifacts/runs/fiqa-dense-qwen-v1__*.json' \
                'artifacts/runs/fiqa-hybrid-qwen-v1__*.json' \
@@ -111,7 +111,10 @@ def main() -> None:
     for a_path, r_path in zip(args.answers, args.runs):
         exp = json.load(open(newest(a_path)))
         strat = exp["retriever"]
-        answers[strat] = json.load(open(exp["answers_artifact"]))
+        art = exp["answers_artifact"]
+        if not Path(art).exists():
+            art = str(Path(__file__).resolve().parents[1] / "artifacts" / "answers" / Path(art).name)
+        answers[strat] = json.load(open(art))
         runs[strat] = json.load(open(newest(r_path)))
 
     strategies = sorted(answers)
