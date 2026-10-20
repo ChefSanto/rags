@@ -129,6 +129,7 @@ document.getElementById("ingestKey").value = localStorage.getItem("ingestKey") |
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
+const keyH = () => ({ "X-Ingest-Key": localStorage.getItem("ingestKey") || "" });
 const TITLES = { chat: ["Chat", ""], upload: ["Upload documents", "PDF or pasted text → personal index"], docs: ["Documents", "your uploaded files"], logs: ["Query log", "every question, answers logged"], lab: ["Lab status", "benchmark results live from GitHub"] };
 
 function showView(view) {
@@ -153,7 +154,7 @@ let currentChat = null, busy = false;
 
 async function loadChats() {
   try {
-    const j = await (await fetch(WORKER + "/chats")).json();
+    const j = await (await fetch(WORKER + "/chats", { headers: keyH() })).json();
     const list = document.getElementById("chatList");
     if (!j.chats || !j.chats.length) {
       list.innerHTML = '<div class="meta" style="padding:8px 12px">No conversations yet.</div>';
@@ -184,7 +185,7 @@ function newChat() {
 
 async function openChat(id) {
   try {
-    const j = await (await fetch(WORKER + "/chat?id=" + encodeURIComponent(id))).json();
+    const j = await (await fetch(WORKER + "/chat?id=" + encodeURIComponent(id), { headers: keyH() })).json();
     currentChat = id;
     const m = document.getElementById("msgs");
     m.innerHTML = "";
@@ -226,7 +227,7 @@ async function send() {
   try {
     const r = await fetch(WORKER + "/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...keyH() },
       body: JSON.stringify({ chat_id: currentChat, message }),
     });
     const j = await r.json();
@@ -315,7 +316,7 @@ async function sendChunks(base, segments) {
     const part = all.slice(i, i + 500);
     const r = await fetch(WORKER + "/ingest-text", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Ingest-Key": key },
+      headers: { "Content-Type": "application/json", ...keyH() },
       body: JSON.stringify({ chunks: part, name: base, total_chunks: all.length }),
     });
     const j = await r.json();
@@ -331,7 +332,7 @@ async function loadDocs() {
   const outEl = document.getElementById("docsOut");
   outEl.innerHTML = '<div class="meta">loading…</div>';
   try {
-    const j = await (await fetch(WORKER + "/documents")).json();
+    const j = await (await fetch(WORKER + "/documents", { headers: keyH() })).json();
     if (!j.documents || !j.documents.length) {
       outEl.innerHTML = '<div class="meta">Nothing uploaded yet. Use Upload docs to add PDFs or paste text.</div>';
       return;
@@ -352,7 +353,7 @@ async function loadLogs() {
   const outEl = document.getElementById("logsOut");
   outEl.innerHTML = '<div class="meta">loading…</div>';
   try {
-    const r = await fetch(WORKER + "/logs?limit=50");
+    const r = await fetch(WORKER + "/logs?limit=50", { headers: keyH() });
     const j = await r.json();
     if (!j.logs || !j.logs.length) { outEl.innerHTML = '<div class="meta">No queries logged yet.</div>'; return; }
     let html = '<table><tr><th>#</th><th>when (UTC)</th><th>question</th><th>src</th><th>ms</th></tr>';

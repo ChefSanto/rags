@@ -1,7 +1,8 @@
 /**
  * AI Lab worker — serving layer of the working RAG.
- * POST /query | POST /chat | GET /chats | GET /chat?id= | GET /documents
- * POST /ingest-text (records uploads) | GET /logs | GET /health
+ * All data endpoints require the X-Ingest-Key header when the INGEST_KEY secret
+ * is set (same passphrase as uploads — it is now the app-wide key).
+ * /health stays public.
  */
 
 const CORS = {
@@ -9,6 +10,8 @@ const CORS = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, X-Ingest-Key",
 };
+
+const PROTECTED = new Set(["/query", "/chat", "/chats", "/ingest-text", "/documents", "/logs"]);
 
 const SYSTEM = {
   role: "system",
@@ -22,6 +25,10 @@ const SYSTEM = {
 const CONTEXT_PROMPT = (ctx, q) =>
   `Context:\n${ctx}\n\nQuestion: ${q}\nAnswer:`;
 
+function keyOk(request, env) {
+  return !env.INGEST_KEY || request.headers.get("X-Ingest-Key") === env.INGEST_KEY;
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
@@ -30,7 +37,9 @@ export default {
     const url = new URL(request.url);
     let resp;
     try {
-      if (request.method === "POST" && url.pathname === "/query") {
+      if (PROTECTED.has(url.pathname) && !keyOk(request, env)) {
+        resp = Response.json({ error: "invalid app key" }, { status: 401 });
+      } else if (request.method === "POST" && url.pathname === "/query") {
         resp = await handleQuery(request, env);
       } else if (request.method === "POST" && url.pathname === "/chat") {
         resp = await handleChat(request, env);
@@ -45,12 +54,9 @@ export default {
       } else if (url.pathname === "/logs") {
         resp = await handleLogs(url, env);
       } else if (url.pathname === "/health") {
-        resp = Response.json({ ok: true, service: "ai-lab-worker" });
+        resp = Response.json({ ok: true, service: "ai-lab-worker", protected: Boolean(env.INGEST_KEY) });
       } else {
-        resp = Response.json(
-          { error: "see /health for routes" },
-          { status: 404 }
-        );
+        resp = Response.json({ error: "see /health for routes" }, { status: 404 });
       }
     } catch (e) {
       resp = Response.json({ error: String((e && e.message) || e) }, { status: 500 });
@@ -198,11 +204,6 @@ async function handleDocuments(env) {
 }
 
 async function handleIngest(request, env) {
-  if (env.INGEST_KEY) {
-    if (request.headers.get("X-Ingest-Key") !== env.INGEST_KEY) {
-      return Response.json({ error: "invalid ingest key" }, { status: 401 });
-    }
-  }
   const body = await request.json().catch(() => null);
   const chunks = body && body.chunks;
   if (!Array.isArray(chunks) || chunks.length === 0) {
