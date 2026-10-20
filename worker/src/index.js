@@ -1,17 +1,17 @@
 /**
  * AI Lab worker — serving layer of the working RAG.
  * All data endpoints require the X-Ingest-Key header when the INGEST_KEY secret
- * is set (same passphrase as uploads — it is now the app-wide key).
+ * is set (same passphrase as uploads — it is the app-wide key).
  * /health stays public.
  */
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, X-Ingest-Key",
 };
 
-const PROTECTED = new Set(["/query", "/chat", "/chats", "/ingest-text", "/documents", "/logs"]);
+const PROTECTED = new Set(["/query", "/chat", "/chats", "/chat-meta", "/ingest-text", "/documents", "/logs"]);
 
 const SYSTEM = {
   role: "system",
@@ -43,6 +43,10 @@ export default {
         resp = await handleQuery(request, env);
       } else if (request.method === "POST" && url.pathname === "/chat") {
         resp = await handleChat(request, env);
+      } else if (request.method === "POST" && url.pathname === "/chat-meta") {
+        resp = await handleChatMeta(request, env);
+      } else if (request.method === "DELETE" && url.pathname === "/chat") {
+        resp = await handleChatDelete(url, env);
       } else if (url.pathname === "/chats") {
         resp = await handleChatList(env);
       } else if (url.pathname === "/chat") {
@@ -173,6 +177,24 @@ async function handleChat(request, env) {
     title: chatRow && chatRow.length ? chatRow[0].title : "",
     answer, sources, elapsed_ms,
   });
+}
+
+async function handleChatMeta(request, env) {
+  const body = await request.json().catch(() => null);
+  const id = (body && body.id || "").trim();
+  const title = ((body && body.title) || "").trim();
+  if (!id || !title) return Response.json({ error: "id and title required" }, { status: 400 });
+  await env.DB.prepare("UPDATE chats SET title = ? WHERE id = ?")
+    .bind(title.slice(0, 80), id).run();
+  return Response.json({ ok: true });
+}
+
+async function handleChatDelete(url, env) {
+  const id = url.searchParams.get("id");
+  if (!id) return Response.json({ error: "missing id" }, { status: 400 });
+  await env.DB.prepare("DELETE FROM messages WHERE chat_id = ?").bind(id).run();
+  await env.DB.prepare("DELETE FROM chats WHERE id = ?").bind(id).run();
+  return Response.json({ ok: true });
 }
 
 async function handleChatList(env) {

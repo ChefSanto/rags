@@ -164,9 +164,35 @@ async function loadChats() {
     for (const c of j.chats) {
       const d = document.createElement("div");
       d.className = "chatitem" + (c.id === currentChat ? " active" : "");
-      d.textContent = c.title;
       d.title = c.title;
-      d.onclick = () => openChat(c.id);
+      d.style.display = "flex"; d.style.justifyContent = "space-between"; d.style.alignItems = "center"; d.style.gap = "6px";
+      const span = document.createElement("span");
+      span.textContent = c.title;
+      span.style.cssText = "overflow:hidden;text-overflow:ellipsis;flex:1;cursor:pointer";
+      span.onclick = () => openChat(c.id);
+      const acts = document.createElement("span");
+      acts.innerHTML = '<a href="#" title="rename">✏️</a>&nbsp;<a href="#" title="delete">🗑</a>';
+      acts.style.visibility = "hidden";
+      d.onmouseenter = () => acts.style.visibility = "visible";
+      d.onmouseleave = () => acts.style.visibility = "hidden";
+      acts.children[0].onclick = async (e) => {
+        e.preventDefault();
+        const t = prompt("Rename chat:", c.title);
+        if (t && t.trim()) {
+          await fetch(WORKER + "/chat-meta", { method: "POST",
+            headers: { "Content-Type": "application/json", ...keyH() },
+            body: JSON.stringify({ id: c.id, title: t.trim().slice(0, 80) }) });
+          loadChats();
+        }
+      };
+      acts.children[1].onclick = async (e) => {
+        e.preventDefault();
+        if (!confirm('Delete chat "' + c.title + '"?')) return;
+        await fetch(WORKER + "/chat?id=" + encodeURIComponent(c.id), { method: "DELETE", headers: keyH() });
+        if (currentChat === c.id) newChat();
+        loadChats();
+      };
+      d.appendChild(span); d.appendChild(acts);
       list.appendChild(d);
     }
   } catch (e) {
@@ -231,7 +257,7 @@ async function send() {
       body: JSON.stringify({ chat_id: currentChat, message }),
     });
     const j = await r.json();
-    if (!r.ok) { thinking.querySelector(".bubble").textContent = "Error: " + (j.error || r.status); return; }
+    if (!r.ok) { if (r.status === 401) showKeyModal(); thinking.querySelector(".bubble").textContent = "Error: " + (j.error || r.status); return; }
     currentChat = j.chat_id;
     thinking.querySelector(".bubble").textContent = j.answer;
     let srcs = "";
@@ -406,6 +432,24 @@ async function loadLab() {
 }
 
 loadChats();
+</script>
+<div id="keyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;align-items:center;justify-content:center">
+  <div style="background:var(--panel);border:1px solid #2c3340;border-radius:14px;padding:22px;width:380px">
+    <div style="font-weight:600;margin-bottom:6px">Enter app key</div>
+    <div class="meta" style="margin:0 0 10px">This dashboard is key-protected. Enter the passphrase to unlock.</div>
+    <input type="password" id="modalKey" placeholder="app passphrase">
+    <div style="margin-top:12px;text-align:right"><button class="go" onclick="saveModalKey()">Unlock</button></div>
+  </div>
+</div>
+<script>
+function showKeyModal() { document.getElementById("keyModal").style.display = "flex"; }
+function saveModalKey() {
+  localStorage.setItem("ingestKey", document.getElementById("modalKey").value);
+  document.getElementById("ingestKey").value = document.getElementById("modalKey").value;
+  document.getElementById("keyModal").style.display = "none";
+  loadChats(); loadDocs(); loadLogs();
+}
+if (!localStorage.getItem("ingestKey")) showKeyModal();
 </script>
 </body>
 </html>
