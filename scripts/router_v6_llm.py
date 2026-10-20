@@ -79,6 +79,7 @@ def call_llm(prompt: str, args) -> str:
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0,
             "max_tokens": max(300, 8 * args.batch_size),
+            "reasoning_effort": "low",
         }).encode(),
         headers={"Content-Type": "application/json", "Authorization": "Bearer " + key, "User-Agent": "curl/8.5.0"},
     )
