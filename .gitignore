@@ -31,3 +31,4 @@ artifacts/query-embeddings/
 # Environment
 .env
 .env.*
+artifacts/personal/
