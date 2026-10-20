@@ -1,14 +1,14 @@
 /**
  * AI Lab worker — serving layer of the working RAG.
- * POST /query | GET /logs | GET /health   (CORS-enabled for the dashboard)
- * Retrieves from both the FiQA corpus index and the personal-documents index,
- * merging results by score.
+ * POST /query | POST /ingest-text | GET /logs | GET /health
+ * Retrieves from the FiQA corpus index and the personal index, merged by score.
+ * /ingest-text requires the X-Ingest-Key header when INGEST_KEY secret is set.
  */
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, X-Ingest-Key",
 };
 
 const PROMPT = (ctx, q) =>
@@ -26,13 +26,15 @@ export default {
     try {
       if (request.method === "POST" && url.pathname === "/query") {
         resp = await handleQuery(request, env);
+      } else if (request.method === "POST" && url.pathname === "/ingest-text") {
+        resp = await handleIngest(request, env);
       } else if (url.pathname === "/logs") {
         resp = await handleLogs(url, env);
       } else if (url.pathname === "/health") {
         resp = Response.json({ ok: true, service: "ai-lab-worker" });
       } else {
         resp = Response.json(
-          { error: "POST /query | GET /logs | GET /health" },
+          { error: "POST /query | POST /ingest-text | GET /logs | GET /health" },
           { status: 404 }
         );
       }
@@ -61,11 +63,9 @@ async function handleQuery(request, env) {
     return Response.json({ error: "missing 'question'" }, { status: 400 });
   }
 
-  // 1. embed — same model used at upload time
   const emb = await env.AI.run("@cf/baai/bge-small-en-v1.5", { text: [question] });
   const vector = emb.data[0];
 
-  // 2. retrieve from BOTH indexes, merge by score
   const topK = parseInt(env.TOP_K || "5", 10);
   const fetchN = topK * 2;
   const [fiqaRes, persRes] = await Promise.all([
@@ -77,7 +77,6 @@ async function handleQuery(request, env) {
     .sort((a, b) => b.score - a.score)
     .slice(0, topK);
 
-  // 3. context from retrieved texts
   const budget = parseInt(env.MAX_CONTEXT_CHARS || "3000", 10);
   let context = "";
   let used = 0;
@@ -91,7 +90,6 @@ async function handleQuery(request, env) {
     sources.push({ id: hits[i].id, score: hits[i].score, preview: text.slice(0, 200) });
   }
 
-  // 4. generate
   const gen = await env.AI.run("@cf/meta/llama-3.2-3b-instruct", {
     messages: [
       {
@@ -105,7 +103,6 @@ async function handleQuery(request, env) {
   const answer = (gen.response || "").trim();
   const elapsed_ms = Date.now() - t0;
 
-  // 5. log (best-effort)
   try {
     await env.DB.prepare(
       `INSERT INTO query_logs (question, answer, num_sources, elapsed_ms, created_at)
@@ -118,6 +115,38 @@ async function handleQuery(request, env) {
   }
 
   return Response.json({ answer, sources, elapsed_ms });
+}
+
+async function handleIngest(request, env) {
+  if (env.INGEST_KEY) {
+    const key = request.headers.get("X-Ingest-Key");
+    if (key !== env.INGEST_KEY) {
+      return Response.json({ error: "invalid ingest key" }, { status: 401 });
+    }
+  }
+  const body = await request.json().catch(() => null);
+  const chunks = body && body.chunks;
+  if (!Array.isArray(chunks) || chunks.length === 0) {
+    return Response.json({ error: "body must be {chunks: [{id, text}, ...]}" }, { status: 400 });
+  }
+  if (chunks.length > 500) {
+    return Response.json({ error: "max 500 chunks per request" }, { status: 400 });
+  }
+  let uploaded = 0;
+  for (let i = 0; i < chunks.length; i += 50) {
+    const batch = chunks.slice(i, i + 50);
+    const texts = batch.map((c) => String(c.text).slice(0, 2000));
+    const emb = await env.AI.run("@cf/baai/bge-small-en-v1.5", { text: texts });
+    await env.VECTORIZE_PERSONAL.upsert(
+      batch.map((c, k) => ({
+        id: String(c.id).slice(0, 200),
+        values: emb.data[k],
+        metadata: { text: texts[k] },
+      }))
+    );
+    uploaded += batch.length;
+  }
+  return Response.json({ uploaded });
 }
 
 async function handleLogs(url, env) {
