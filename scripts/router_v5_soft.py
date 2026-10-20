@@ -40,6 +40,15 @@ RRF_K = 60
 GRID = [i / 10 for i in range(11)]
 
 
+
+def _local_run(path_str):
+    """Run artifacts may carry absolute paths from the machine that produced
+    them (e.g. /kaggle/working/...); fall back to the local committed file."""
+    p = Path(path_str)
+    if not p.exists():
+        p = ROOT / "artifacts" / "runs" / p.name
+    return json.loads(p.read_text())
+
 def load_runs(dataset_name: str, results_dir: str) -> dict:
     results = [r for r in load_results(results_dir)
                if r.get("dataset") == dataset_name and r.get("run_artifact")]
@@ -48,8 +57,7 @@ def load_runs(dataset_name: str, results_dir: str) -> dict:
         by[r["retriever"]] = r
     if "bm25" not in by or "dense" not in by:
         raise SystemExit(f"{dataset_name}: need bm25+dense run artifacts")
-    return {s: json.loads(Path(r["run_artifact"]).read_text())
-            for s, r in by.items() if s in ("bm25", "dense")}
+    return {s: _local_run(r["run_artifact"]) for s, r in by.items() if s in ("bm25", "dense")}
 
 
 def fuse(bm25_ids: list, dense_ids: list, w: float) -> list:
