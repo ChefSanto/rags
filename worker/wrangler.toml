@@ -9,6 +9,10 @@ binding = "AI"
 binding = "VECTORIZE"
 index_name = "ai-lab-corpus"
 
+[[vectorize]]
+binding = "VECTORIZE_PERSONAL"
+index_name = "ai-lab-personal"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "ai-lab"

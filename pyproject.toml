@@ -21,6 +21,7 @@ ml = [
 ]
 pdf = [
     "pymupdf>=1.24",
+    "python-pptx>=1.0",
 ]
 router = [
     "scikit-learn>=1.3",

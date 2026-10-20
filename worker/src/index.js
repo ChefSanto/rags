@@ -1,6 +1,8 @@
 /**
  * AI Lab worker — serving layer of the working RAG.
  * POST /query | GET /logs | GET /health   (CORS-enabled for the dashboard)
+ * Retrieves from both the FiQA corpus index and the personal-documents index,
+ * merging results by score.
  */
 
 const CORS = {
@@ -63,10 +65,17 @@ async function handleQuery(request, env) {
   const emb = await env.AI.run("@cf/baai/bge-small-en-v1.5", { text: [question] });
   const vector = emb.data[0];
 
-  // 2. retrieve
+  // 2. retrieve from BOTH indexes, merge by score
   const topK = parseInt(env.TOP_K || "5", 10);
-  const res = await env.VECTORIZE.query(vector, { topK, returnMetadata: "all" });
-  const hits = res.matches || [];
+  const fetchN = topK * 2;
+  const [fiqaRes, persRes] = await Promise.all([
+    env.VECTORIZE.query(vector, { topK: fetchN, returnMetadata: "all" }),
+    env.VECTORIZE_PERSONAL.query(vector, { topK: fetchN, returnMetadata: "all" })
+      .catch(() => ({ matches: [] })),
+  ]);
+  const hits = [...(fiqaRes.matches || []), ...(persRes.matches || [])]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
 
   // 3. context from retrieved texts
   const budget = parseInt(env.MAX_CONTEXT_CHARS || "3000", 10);
