@@ -21,4 +21,6 @@ database_id = "170f8fe2-4a07-4636-952a-2cb826fc8786"
 [vars]
 TOP_K = "5"
 MAX_CONTEXT_CHARS = "8000"
-MAX_TOKENS = "200"
+MAX_TOKENS = "300"
+MODEL_PROVIDER = "cf"
+# MODEL_NAME = "@cf/meta/llama-3.2-3b-instruct"

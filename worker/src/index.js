@@ -1,8 +1,13 @@
 /**
  * AI Lab worker — serving layer of the working RAG.
  * All data endpoints require the X-Ingest-Key header when the INGEST_KEY secret
- * is set (same passphrase as uploads — it is the app-wide key).
- * /health stays public.
+ * is set (the app-wide key). /health stays public.
+ *
+ * Generation provider is env-driven:
+ *   MODEL_PROVIDER = "cf" | "openai" | "groq"   (default "cf")
+ *   MODEL_NAME     = optional model override per provider
+ * Secrets (never in the repo): OPENAI_KEY, GROQ_API_KEY.
+ * Embeddings always use @cf/baai/bge-small-en-v1.5 (Vectorize dimension lock).
  */
 
 const CORS = {
@@ -58,7 +63,12 @@ export default {
       } else if (url.pathname === "/logs") {
         resp = await handleLogs(url, env);
       } else if (url.pathname === "/health") {
-        resp = Response.json({ ok: true, service: "ai-lab-worker", protected: Boolean(env.INGEST_KEY) });
+        resp = Response.json({
+          ok: true,
+          service: "ai-lab-worker",
+          protected: Boolean(env.INGEST_KEY),
+          provider: env.MODEL_PROVIDER || "cf",
+        });
       } else {
         resp = Response.json({ error: "see /health for routes" }, { status: 404 });
       }
@@ -100,10 +110,29 @@ async function retrieve(env, question, topK) {
 }
 
 async function generate(env, messages) {
-  const gen = await env.AI.run("@cf/meta/llama-3.2-3b-instruct", {
-    messages,
-    max_tokens: parseInt(env.MAX_TOKENS || "300", 10),
-  });
+  const maxTokens = parseInt(env.MAX_TOKENS || "300", 10);
+  const provider = (env.MODEL_PROVIDER || "cf").toLowerCase();
+
+  if (provider === "openai" || provider === "groq") {
+    const base = provider === "groq" ? "https://api.groq.com/openai/v1" : "https://api.openai.com/v1";
+    const key = provider === "groq" ? env.GROQ_API_KEY : env.OPENAI_KEY;
+    if (!key) return `[${provider} selected but ${provider === "groq" ? "GROQ_API_KEY" : "OPENAI_KEY"} secret is not set]`;
+    const model = env.MODEL_NAME || (provider === "groq" ? "llama-3.1-8b-instant" : "gpt-4o-mini");
+    const r = await fetch(base + "/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
+      body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0 }),
+    });
+    const j = await r.json();
+    if (!r.ok) return `Error from ${provider}: ` + JSON.stringify(j).slice(0, 200);
+    return (((j.choices || [])[0] || {}).message || {}).content
+      ? j.choices[0].message.content.trim()
+      : "(empty response)";
+  }
+
+  // default: Cloudflare Workers AI
+  const model = env.MODEL_NAME || "@cf/meta/llama-3.2-3b-instruct";
+  const gen = await env.AI.run(model, { messages, max_tokens: maxTokens });
   return (gen.response || "").trim();
 }
 
