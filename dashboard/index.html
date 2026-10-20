@@ -3,133 +3,145 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Lab — RAG console</title>
+<title>AI Lab</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
-  :root { --bg:#0f1115; --panel:#171a21; --fg:#e6e9ef; --dim:#9aa3b2; --accent:#5b9dff; --ok:#4ade80; }
-  * { box-sizing: border-box; }
-  body { margin:0; font:15px/1.5 -apple-system, system-ui, sans-serif; background:var(--bg); color:var(--fg); }
-  header { padding:14px 24px; border-bottom:1px solid #262b36; display:flex; gap:16px; align-items:baseline; flex-wrap:wrap; }
-  header h1 { font-size:18px; margin:0; }
-  header .dim { color:var(--dim); font-size:13px; }
-  nav { display:flex; gap:8px; padding:10px 24px 0; flex-wrap:wrap; }
-  nav button { background:var(--panel); color:var(--dim); border:1px solid #262b36; padding:8px 16px; border-radius:8px 8px 0 0; cursor:pointer; }
-  nav button.active { color:var(--fg); border-bottom-color:var(--accent); }
-  main { padding:16px 24px; }
-  section { display:none; }
-  section.active { display:block; }
-  .panel { background:var(--panel); border:1px solid #262b36; border-radius:12px; padding:18px; }
-  input[type=text], input[type=password], input:not([type]), textarea { width:100%; background:#0c0e12; color:var(--fg); border:1px solid #2c3340; border-radius:8px; padding:10px; font:inherit; }
-  button.go { background:var(--accent); color:#08111f; border:0; border-radius:8px; padding:10px 18px; font-weight:600; cursor:pointer; }
-  button.ghost { background:#232936; color:var(--fg); border:1px solid #2c3340; border-radius:8px; padding:10px 18px; cursor:pointer; }
+  :root { --bg:#0f1115; --side:#13151b; --panel:#171a21; --fg:#e6e9ef; --dim:#9aa3b2; --accent:#5b9dff; --ok:#4ade80; --line:#232936; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 -apple-system, system-ui, sans-serif; background:var(--bg); color:var(--fg); height:100vh; display:flex; overflow:hidden; }
+
+  /* sidebar (ChatGPT-style) */
+  aside { width:268px; background:var(--side); border-right:1px solid var(--line); display:flex; flex-direction:column; flex-shrink:0; }
+  .brand { padding:16px; font-weight:700; font-size:17px; border-bottom:1px solid var(--line); }
+  .brand span { color:var(--accent); }
+  .newchat { margin:12px; }
+  .chatlist { flex:1; overflow-y:auto; padding:4px 8px; }
+  .chatitem { padding:9px 12px; border-radius:8px; cursor:pointer; color:var(--dim); font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .chatitem:hover { background:#1b2029; color:var(--fg); }
+  .chatitem.active { background:#223047; color:var(--fg); }
+  .sidenav { border-top:1px solid var(--line); padding:8px; }
+  .navitem { display:flex; gap:10px; align-items:center; width:100%; text-align:left; background:none; border:0; color:var(--dim); padding:10px 12px; border-radius:8px; cursor:pointer; font-size:14px; }
+  .navitem:hover { background:#1b2029; color:var(--fg); }
+  .navitem.active { background:#223047; color:var(--fg); }
+
+  /* main */
+  main { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .topbar { padding:14px 24px; border-bottom:1px solid var(--line); display:flex; align-items:baseline; gap:12px; }
+  .topbar h2 { font-size:16px; margin:0; }
+  .topbar .dim { color:var(--dim); font-size:12px; }
+  .content { flex:1; overflow-y:auto; padding:0 24px 24px; display:none; }
+  .content.active { display:block; }
+
+  input[type=text], input[type=password], input:not([type]), textarea { width:100%; background:#0c0e12; color:var(--fg); border:1px solid #2c3340; border-radius:10px; padding:12px 14px; font:inherit; }
+  button.go { background:var(--accent); color:#08111f; border:0; border-radius:10px; padding:11px 18px; font-weight:600; cursor:pointer; }
+  button.ghost { background:#232936; color:var(--fg); border:1px solid #2c3340; border-radius:10px; padding:10px 18px; cursor:pointer; }
   .meta { color:var(--dim); font-size:12px; margin-top:8px; }
   .err { color:#ff7b72; }
-  .drop { border:2px dashed #2c3340; border-radius:12px; padding:30px; text-align:center; color:var(--dim); margin-top:6px; }
+  .drop { border:2px dashed #2c3340; border-radius:14px; padding:36px; text-align:center; color:var(--dim); margin-top:6px; }
   .drop.over { border-color:var(--accent); color:var(--fg); }
-  #ingestKeyRow { max-width:420px; margin-bottom:12px; }
+  .narrow { max-width:760px; margin:0 auto; padding-top:20px; }
   table { width:100%; border-collapse:collapse; margin-top:12px; font-size:13px; }
-  th, td { text-align:left; padding:6px 10px; border-bottom:1px solid #232834; vertical-align:top; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
   th { color:var(--dim); font-weight:600; }
   td.num { font-variant-numeric:tabular-nums; }
   a { color:var(--accent); }
 
   /* chat */
-  .chatwrap { display:flex; gap:16px; min-height:60vh; }
-  .sidebar { width:250px; flex-shrink:0; display:flex; flex-direction:column; gap:8px; }
-  .chatmain { flex:1; display:flex; flex-direction:column; }
-  .chatlist { overflow-y:auto; flex:1; }
-  .chatitem { padding:9px 12px; border-radius:8px; cursor:pointer; color:var(--dim); font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .chatitem:hover { background:#1d222c; }
-  .chatitem.active { background:#223047; color:var(--fg); }
-  .msgs { flex:1; overflow-y:auto; padding:8px 4px; max-height:56vh; }
-  .msg { margin:10px 0; display:flex; flex-direction:column; }
-  .bubble { max-width:82%; padding:10px 14px; border-radius:14px; white-space:pre-wrap; }
+  .chatcol { max-width:820px; margin:0 auto; display:flex; flex-direction:column; height:100%; }
+  .msgs { flex:1; overflow-y:auto; padding:16px 0; }
+  .msg { margin:14px 0; display:flex; flex-direction:column; }
+  .bubble { max-width:85%; padding:12px 16px; border-radius:16px; white-space:pre-wrap; line-height:1.55; }
   .msg.user { align-items:flex-end; }
   .msg.user .bubble { background:#223047; border-bottom-right-radius:4px; }
   .msg.bot { align-items:flex-start; }
-  .msg.bot .bubble { background:#0c0e12; border:1px solid #232936; border-bottom-left-radius:4px; }
-  .src { font-size:12px; color:var(--dim); border-left:2px solid #2c3340; padding-left:10px; margin:8px 0 0 4px; }
+  .msg.bot .bubble { background:var(--panel); border:1px solid var(--line); border-bottom-left-radius:4px; }
+  .src { font-size:12px; color:var(--dim); border-left:2px solid #2c3340; padding-left:10px; margin:8px 0 0 6px; max-width:85%; }
   .src .score { color:var(--ok); }
-  .composer { display:flex; gap:8px; margin-top:12px; }
-  .composer button { flex-shrink:0; }
+  .composer { display:flex; gap:10px; padding:14px 0 4px; border-top:1px solid var(--line); }
+  .empty { color:var(--dim); text-align:center; margin-top:18vh; font-size:15px; }
 </style>
 </head>
 <body>
-<header>
-  <h1>AI Lab</h1>
-  <span class="dim">working RAG &middot; worker: <a id="workerUrl" href="#" target="_blank"></a></span>
-</header>
-<nav>
-  <button data-tab="chats" class="active">Chats</button>
-  <button data-tab="upload">Upload docs</button>
-  <button data-tab="logs">Query log</button>
-  <button data-tab="lab">Lab status</button>
-</nav>
+<aside>
+  <div class="brand">AI <span>Lab</span></div>
+  <button class="go newchat" onclick="newChat()">+ New chat</button>
+  <div class="chatlist" id="chatList"><div class="meta" style="padding:8px 12px">loading…</div></div>
+  <div class="sidenav">
+    <button class="navitem" data-view="upload">📄 &nbsp;Upload docs</button>
+    <button class="navitem" data-view="docs">🗂️ &nbsp;Documents</button>
+    <button class="navitem" data-view="logs">📋 &nbsp;Query log</button>
+    <button class="navitem" data-view="lab">🧪 &nbsp;Lab status</button>
+    <div class="meta" style="padding:8px 12px 2px">worker: <a id="workerUrl" href="#" target="_blank">health</a></div>
+  </div>
+</aside>
+
 <main>
-  <section id="chats" class="active">
-    <div class="panel chatwrap">
-      <div class="sidebar">
-        <button class="go" onclick="newChat()">+ New chat</button>
-        <div class="chatlist" id="chatList"><div class="meta">loading…</div></div>
-      </div>
-      <div class="chatmain">
-        <div class="msgs" id="msgs"></div>
-        <div class="composer">
-          <input type="text" id="chatIn" placeholder="Ask about your documents or the corpus…" onkeydown="if(event.key==='Enter')send()">
-          <button class="go" onclick="send()">Send</button>
-        </div>
+  <div class="topbar"><h2 id="viewTitle">Chat</h2><span class="dim" id="viewSub"></span></div>
+
+  <div class="content active" id="view-chat">
+    <div class="chatcol">
+      <div class="msgs" id="msgs"><div class="empty">Ask about your documents or the FiQA corpus.<br>Each conversation keeps its own context.</div></div>
+      <div class="composer">
+        <input type="text" id="chatIn" placeholder="Message AI Lab…" onkeydown="if(event.key==='Enter')send()">
+        <button class="go" onclick="send()">Send</button>
       </div>
     </div>
-  </section>
-  <section id="upload">
-    <div class="panel">
-      <div id="ingestKeyRow">
-        <span class="dim">Ingest key (asked once, stored in this browser only):</span>
+  </div>
+
+  <div class="content" id="view-upload"><div class="narrow">
+    <div id="ingestKeyRow">
+      <span class="dim">Ingest key (stored in this browser only):</span>
+      <div style="display:flex;gap:8px;margin-top:6px">
         <input type="password" id="ingestKey" placeholder="your ingest passphrase">
-        <button class="ghost" onclick="localStorage.setItem('ingestKey', document.getElementById('ingestKey').value); up('ingest key saved')">Save key</button>
+        <button class="ghost" onclick="localStorage.setItem('ingestKey', document.getElementById('ingestKey').value); up('ingest key saved')">Save</button>
       </div>
-      <div class="drop" id="drop">Drop PDF(s) here (or click to choose)</div>
-      <input type="file" id="filePick" accept="application/pdf" multiple style="display:none">
-      <div class="meta" style="margin-top:14px">…or paste text directly:</div>
-      <textarea id="paste" rows="5" placeholder="Paste any text: notes, an article, meeting minutes…"></textarea>
-      <input type="text" id="pasteName" placeholder="Name for this document (e.g. meeting-notes)" style="margin-top:8px">
-      <button class="go" onclick="uploadPaste()">Upload pasted text</button>
-      <div id="upOut"></div>
     </div>
-  </section>
-  <section id="logs">
-    <div class="panel">
-      <button class="go" onclick="loadLogs()">Refresh</button>
-      <div id="logsOut"></div>
-    </div>
-  </section>
-  <section id="lab">
-    <div class="panel">
-      <span class="dim">Loaded live from the GitHub repo (experiments/results). <button class="go" onclick="loadLab()">Reload</button></span>
-      <div id="labOut"></div>
-    </div>
-  </section>
+    <div class="drop" id="drop" style="margin-top:16px">Drop PDF(s) here (or click to choose)</div>
+    <input type="file" id="filePick" accept="application/pdf" multiple style="display:none">
+    <div class="meta" style="margin-top:16px">…or paste text directly:</div>
+    <textarea id="paste" rows="5" placeholder="Paste any text: notes, an article, meeting minutes…"></textarea>
+    <input type="text" id="pasteName" placeholder="Name for this document (e.g. meeting-notes)" style="margin-top:8px">
+    <button class="go" onclick="uploadPaste()">Upload pasted text</button>
+    <div id="upOut"></div>
+  </div></div>
+
+  <div class="content" id="view-docs"><div class="narrow">
+    <span class="dim">Your uploaded documents (personal index). <button class="go" onclick="loadDocs()">Refresh</button></span>
+    <div id="docsOut"></div>
+  </div></div>
+
+  <div class="content" id="view-logs"><div class="narrow">
+    <button class="go" onclick="loadLogs()">Refresh</button>
+    <div id="logsOut"></div>
+  </div></div>
+
+  <div class="content" id="view-lab"><div class="narrow">
+    <span class="dim">Loaded live from the GitHub repo (experiments/results). <button class="go" onclick="loadLab()">Reload</button></span>
+    <div id="labOut"></div>
+  </div></div>
 </main>
+
 <script>
 const WORKER = "https://ai-lab-worker.antwibrand.workers.dev";
 const GH_API = "https://api.github.com/repos/ChefSanto/rags/contents/experiments/results";
-document.getElementById("workerUrl").textContent = WORKER;
 document.getElementById("workerUrl").href = WORKER + "/health";
 document.getElementById("ingestKey").value = localStorage.getItem("ingestKey") || "";
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-for (const b of document.querySelectorAll("nav button")) {
-  b.onclick = () => {
-    document.querySelectorAll("nav button").forEach(x => x.classList.remove("active"));
-    document.querySelectorAll("section").forEach(x => x.classList.remove("active"));
-    b.classList.add("active");
-    document.getElementById(b.dataset.tab).classList.add("active");
-    if (b.dataset.tab === "logs") loadLogs();
-    if (b.dataset.tab === "lab") loadLab();
-    if (b.dataset.tab === "chats") { loadChats(); }
-  };
+const TITLES = { chat: ["Chat", ""], upload: ["Upload documents", "PDF or pasted text → personal index"], docs: ["Documents", "your uploaded files"], logs: ["Query log", "every question, answers logged"], lab: ["Lab status", "benchmark results live from GitHub"] };
+
+function showView(view) {
+  document.querySelectorAll(".content").forEach(x => x.classList.remove("active"));
+  document.querySelectorAll(".navitem").forEach(x => x.classList.toggle("active", x.dataset.view === view));
+  document.getElementById("view-" + view).classList.add("active");
+  document.getElementById("viewTitle").textContent = TITLES[view][0];
+  document.getElementById("viewSub").textContent = TITLES[view][1];
+  if (view === "logs") loadLogs();
+  if (view === "lab") loadLab();
+  if (view === "docs") loadDocs();
 }
+for (const b of document.querySelectorAll(".navitem")) b.onclick = () => showView(b.dataset.view);
 
 function up(m) { document.getElementById("upOut").innerHTML = '<div class="meta">' + escapeHtml(m) + '</div>'; }
 function escapeHtml(s) {
@@ -137,15 +149,14 @@ function escapeHtml(s) {
 }
 
 /* ---------- chats ---------- */
-let currentChat = null;
-let busy = false;
+let currentChat = null, busy = false;
 
 async function loadChats() {
   try {
     const j = await (await fetch(WORKER + "/chats")).json();
     const list = document.getElementById("chatList");
     if (!j.chats || !j.chats.length) {
-      list.innerHTML = '<div class="meta">No chats yet — ask something to start one.</div>';
+      list.innerHTML = '<div class="meta" style="padding:8px 12px">No conversations yet.</div>';
       return;
     }
     list.innerHTML = "";
@@ -164,8 +175,10 @@ async function loadChats() {
 
 function newChat() {
   currentChat = null;
-  document.getElementById("msgs").innerHTML = "";
+  const m = document.getElementById("msgs");
+  m.innerHTML = '<div class="empty">Ask about your documents or the FiQA corpus.<br>Each conversation keeps its own context.</div>';
   document.querySelectorAll(".chatitem").forEach(x => x.classList.remove("active"));
+  showView("chat");
   document.getElementById("chatIn").focus();
 }
 
@@ -173,22 +186,18 @@ async function openChat(id) {
   try {
     const j = await (await fetch(WORKER + "/chat?id=" + encodeURIComponent(id))).json();
     currentChat = id;
-    renderMessages(j.messages || []);
-    document.querySelectorAll(".chatitem").forEach(x => x.classList.toggle("active", x.textContent === j.chat.title));
-  } catch (e) {
-    alert("failed to load chat: " + e);
-  }
-}
-
-function renderMessages(messages) {
-  const box = document.getElementById("msgs");
-  box.innerHTML = "";
-  for (const m of messages) appendMsg(m.role, m.content, []);
-  scrollBottom();
+    const m = document.getElementById("msgs");
+    m.innerHTML = "";
+    for (const msg of j.messages || []) appendMsg(msg.role, msg.content, []);
+    showView("chat");
+    loadChats();
+    scrollBottom();
+  } catch (e) { alert("failed to load chat: " + e); }
 }
 
 function appendMsg(role, content, sources) {
-  const box = document.getElementById("msgs");
+  const m = document.getElementById("msgs");
+  const empty = m.querySelector(".empty"); if (empty) empty.remove();
   const wrap = document.createElement("div");
   wrap.className = "msg " + (role === "user" ? "user" : "bot");
   let html = '<div class="bubble">' + escapeHtml(content) + '</div>';
@@ -197,24 +206,23 @@ function appendMsg(role, content, sources) {
             '#' + escapeHtml(String(s.id)) + ' — ' + escapeHtml(s.preview) + '…</div>';
   }
   wrap.innerHTML = html;
-  box.appendChild(wrap);
+  m.appendChild(wrap);
   scrollBottom();
+  return wrap;
 }
 
 function scrollBottom() {
-  const box = document.getElementById("msgs");
-  box.scrollTop = box.scrollHeight;
+  const m = document.getElementById("msgs");
+  m.scrollTop = m.scrollHeight;
 }
 
 async function send() {
   const input = document.getElementById("chatIn");
   const message = input.value.trim();
   if (!message || busy) return;
-  busy = true;
-  input.value = "";
+  busy = true; input.value = "";
   appendMsg("user", message, []);
-  appendMsg("bot", "thinking…", []);
-  const thinking = document.getElementById("msgs").lastChild;
+  const thinking = appendMsg("bot", "thinking…", []);
   try {
     const r = await fetch(WORKER + "/chat", {
       method: "POST",
@@ -234,13 +242,10 @@ async function send() {
     loadChats();
   } catch (e) {
     thinking.querySelector(".bubble").textContent = "Fetch failed: " + e;
-  } finally {
-    busy = false;
-    input.focus();
-  }
+  } finally { busy = false; input.focus(); }
 }
 
-/* ---------- upload (multi-file) ---------- */
+/* ---------- upload ---------- */
 const drop = document.getElementById("drop");
 drop.onclick = () => document.getElementById("filePick").click();
 document.getElementById("filePick").onchange = (e) => handleFiles([...e.target.files]);
@@ -311,7 +316,7 @@ async function sendChunks(base, segments) {
     const r = await fetch(WORKER + "/ingest-text", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Ingest-Key": key },
-      body: JSON.stringify({ chunks: part }),
+      body: JSON.stringify({ chunks: part, name: base, total_chunks: all.length }),
     });
     const j = await r.json();
     if (!r.ok) { up("upload failed: " + (j.error || r.status)); return; }
@@ -321,7 +326,28 @@ async function sendChunks(base, segments) {
   up("done — " + base + ": " + done + " chunks uploaded.");
 }
 
-/* ---------- logs ---------- */
+/* ---------- documents ---------- */
+async function loadDocs() {
+  const outEl = document.getElementById("docsOut");
+  outEl.innerHTML = '<div class="meta">loading…</div>';
+  try {
+    const j = await (await fetch(WORKER + "/documents")).json();
+    if (!j.documents || !j.documents.length) {
+      outEl.innerHTML = '<div class="meta">Nothing uploaded yet. Use Upload docs to add PDFs or paste text.</div>';
+      return;
+    }
+    let html = '<table><tr><th>document</th><th>chunks</th><th>last updated (UTC)</th></tr>';
+    for (const d of j.documents) {
+      html += '<tr><td>' + escapeHtml(d.name) + '</td><td class="num">' + d.chunks +
+              '</td><td class="dim">' + d.updated_at + '</td></tr>';
+    }
+    outEl.innerHTML = html + '</table><div class="meta">Note: documents uploaded via the terminal script before tracking existed may be missing — re-upload via the browser once to register them.</div>';
+  } catch (e) {
+    outEl.innerHTML = '<div class="err">Fetch failed: ' + escapeHtml(String(e)) + '</div>';
+  }
+}
+
+/* ---------- logs / lab ---------- */
 async function loadLogs() {
   const outEl = document.getElementById("logsOut");
   outEl.innerHTML = '<div class="meta">loading…</div>';
@@ -341,7 +367,6 @@ async function loadLogs() {
   }
 }
 
-/* ---------- lab ---------- */
 async function loadLab() {
   const outEl = document.getElementById("labOut");
   outEl.innerHTML = '<div class="meta">loading from GitHub…</div>';

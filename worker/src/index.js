@@ -1,10 +1,7 @@
 /**
  * AI Lab worker — serving layer of the working RAG.
- * POST /query      single-shot question (no memory)
- * POST /chat       conversational turn (creates/resumes a chat)
- * GET  /chats      list chats
- * GET  /chat?id=   load one chat's messages
- * POST /ingest-text | GET /logs | GET /health
+ * POST /query | POST /chat | GET /chats | GET /chat?id= | GET /documents
+ * POST /ingest-text (records uploads) | GET /logs | GET /health
  */
 
 const CORS = {
@@ -23,7 +20,7 @@ const SYSTEM = {
 };
 
 const CONTEXT_PROMPT = (ctx, q) =>
-  `${ctx}\n\nContext:\n${ctx}\n\nQuestion: ${q}\nAnswer:`;
+  `Context:\n${ctx}\n\nQuestion: ${q}\nAnswer:`;
 
 export default {
   async fetch(request, env) {
@@ -41,6 +38,8 @@ export default {
         resp = await handleChatList(env);
       } else if (url.pathname === "/chat") {
         resp = await handleChatGet(url, env);
+      } else if (url.pathname === "/documents") {
+        resp = await handleDocuments(env);
       } else if (request.method === "POST" && url.pathname === "/ingest-text") {
         resp = await handleIngest(request, env);
       } else if (url.pathname === "/logs") {
@@ -49,7 +48,7 @@ export default {
         resp = Response.json({ ok: true, service: "ai-lab-worker" });
       } else {
         resp = Response.json(
-          { error: "POST /query | POST /chat | GET /chats | GET /chat | POST /ingest-text | GET /logs | GET /health" },
+          { error: "see /health for routes" },
           { status: 404 }
         );
       }
@@ -90,7 +89,7 @@ async function retrieve(env, question, topK) {
   return { context, sources };
 }
 
-async function generate(env, messages, maxTokens) {
+async function generate(env, messages) {
   const gen = await env.AI.run("@cf/meta/llama-3.2-3b-instruct", {
     messages,
     max_tokens: parseInt(env.MAX_TOKENS || "300", 10),
@@ -139,7 +138,6 @@ async function handleChat(request, env) {
   await env.DB.prepare("INSERT INTO messages (chat_id, role, content, created_at) VALUES (?, 'user', ?, ?)")
     .bind(chatId, message, now).run();
 
-  // prior turns for prompt context: last 6 turns (12 messages), excluding the one just inserted
   const { results: raw } = await env.DB.prepare(
     "SELECT role, content FROM messages WHERE chat_id = ? ORDER BY id DESC LIMIT 13"
   ).bind(chatId).all();
@@ -192,6 +190,13 @@ async function handleChatGet(url, env) {
   return Response.json({ chat: chat[0], messages });
 }
 
+async function handleDocuments(env) {
+  const { results } = await env.DB.prepare(
+    "SELECT name, chunks, created_at, updated_at FROM uploads ORDER BY updated_at DESC"
+  ).all();
+  return Response.json({ documents: results });
+}
+
 async function handleIngest(request, env) {
   if (env.INGEST_KEY) {
     if (request.headers.get("X-Ingest-Key") !== env.INGEST_KEY) {
@@ -219,6 +224,12 @@ async function handleIngest(request, env) {
       }))
     );
     uploaded += batch.length;
+  }
+  if (body.name) {
+    await env.DB.prepare(
+      `INSERT INTO uploads (name, chunks, created_at, updated_at) VALUES (?, ?, datetime('now'), datetime('now'))
+       ON CONFLICT(name) DO UPDATE SET chunks = excluded.chunks, updated_at = datetime('now')`
+    ).bind(String(body.name).slice(0, 200), parseInt(body.total_chunks || chunks.length, 10)).run();
   }
   return Response.json({ uploaded });
 }
