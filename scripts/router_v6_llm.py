@@ -42,9 +42,9 @@ PROMPT_HEAD = (
     "You route search queries to retrieval strategies.\n\n"
     "Strategies:\n"
     "- bm25: exact keyword/terminology matching; best for rare technical terms, codes, precise names\n"
-    "- dense: semantic matching; best for natural-language questions about meaning and concepts\n"
-    "- hybrid: balanced combination; best when the query is mixed or ambiguous\n\n"
-    "For each numbered query answer with exactly one word (bm25, dense, or hybrid).\n\n"
+    "- dense: semantic matching; best for natural-language questions about meaning and concepts\n\n"
+    "For each numbered query answer with exactly one word: bm25 or dense. "
+    "Commit to one -- do not hedge.\n\n"
 )
 
 
@@ -78,12 +78,15 @@ def call_llm(prompt: str, args) -> str:
             "model": args.model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0,
-            "max_tokens": 5 * args.batch_size,
+            "max_tokens": max(300, 8 * args.batch_size),
         }).encode(),
-        headers={"Content-Type": "application/json", "Authorization": "Bearer " + key},
+        headers={"Content-Type": "application/json", "Authorization": "Bearer " + key, "User-Agent": "curl/8.5.0"},
     )
-    with urllib.request.urlopen(req, timeout=120) as r:
-        j = json.loads(r.read())
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            j = json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        raise SystemExit(f"{args.provider} error {e.code}: {e.read().decode()[:400]}")
     return j["choices"][0]["message"]["content"]
 
 
@@ -156,7 +159,7 @@ def main() -> None:
                 cache[f"{args.model}:{q}"] = a
             save_cache(cache)
             print(f"  routed {min(i + args.batch_size, len(todo))}/{len(todo)}")
-            time.sleep(1)
+            time.sleep(6)
         strat_of = {q: cache[f"{args.model}:{q}"] for q in test_q}
 
         routed_scores, oracle_scores = [], []
