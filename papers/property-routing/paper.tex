@@ -3,6 +3,8 @@
 \usepackage{booktabs}
 \usepackage{amsmath}
 \usepackage{hyperref}
+\usepackage{graphicx}
+\graphicspath{{figures/}}
 \usepackage{url}
 \setlength{\parskip}{4pt}
 
@@ -77,6 +79,12 @@ Under the honest test-split protocol the pattern holds: oracle 0.4338 (FiQA) and
 
 One observation frames everything that follows: the \textbf{soft oracle exceeds the hard oracle}. Allowing per-query fusion weights $w \in \{0, 0.1, \dots, 1.0\}$ (RRF-fused BM25+dense rankings, weight grid-searched per query) reaches 0.4413/0.3884 --- \emph{above} per-query strategy selection (0.4338/0.3842). Fusion hedges: blending two thin, complementary rankings rescues queries no single strategy serves. The ceiling is higher than the routing literature's usual number --- and we will see it is no more reachable.
 
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{fig_ladder.png}
+\caption{The routing rainbow: every paradigm attempted (blue), fixed baselines (gray), and the oracle (green), on the honest train/test protocol. The dashed line marks the tuned uniform weight --- the bar nobody meaningfully clears.}
+\label{fig:ladder}
+\end{figure}
 \section{Seven attempts to capture the gap}
 All routers below are trained on the train split and evaluated once on the test split, per \S2.2. Each subsection reports the outcome \emph{and the mechanism}; the mechanisms are the contribution.
 
@@ -115,6 +123,12 @@ RCT-MARS (\S\ref{sec:related}) resolves the hard-routing paradox by going soft: 
 
 \textbf{v5-heuristic} (weight from predicted strategy strengths, $w = \hat{s}_d / (\hat{s}_d + \hat{s}_b)$): 0.3607 (+0.0005). It never hurts and never helps; it behaves like RRF because it \emph{is} RRF in spirit. Once the uniform weight is tuned, hedging has nothing left to add.
 
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.8\textwidth]{fig_valley.png}
+\caption{FiQA test nDCG@10 as a function of fusion weight (uniform sweep; router-v5 report). The curve is non-convex: quality collapses between $w{=}0.3$ and $w{=}0.4$, then jumps at $w{=}0.5$. v5-direct's predicted mean weight (0.323) lands in the shaded valley --- the mechanism of its $-25\%$ recovery.}
+\label{fig:valley}
+\end{figure}
 \subsection{v6 --- LLM-as-router (zero-shot)}
 The modern routing literature increasingly uses LLMs as routers. We test zero-shot routing with \texttt{gpt-oss-20b} (Groq), asked to name the best strategy per query from the query text alone, batched and cached; routing uses the committed run artifacts.
 
@@ -161,6 +175,12 @@ The matrix raises the question the failure descriptions cannot answer: is the or
 p^* = \frac{\text{loss}}{\text{gain} + \text{loss}} \;\to\; 49.6\% \text{ (FiQA)},\quad 45.5\% \text{ (NFCorpus)}
 \end{equation}
 
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.75\textwidth]{fig_breakeven.png}
+\caption{Break-even pick accuracy $p^*$ (red, from the win analysis) versus the ${\sim}51\%$ accuracy achieved by the best query-feature predictors (blue). Predictors sit at the profitability threshold: expected routing gain ${\approx}$ zero.}
+\label{fig:breakeven}
+\end{figure}
 \textbf{And query features carry no fingerprint for finding them.} Win queries differ from others only marginally (slightly rarer terms; NFCorpus wins have higher corpus coverage, 0.98 vs 0.81); the winner mix is split across all three strategies (FiQA wins: dense 193, bm25 100, hybrid 63). Meanwhile our best feature routers classified at $\sim$51\% accuracy --- statistically \emph{at} the break-even point.
 
 This is the paper's explanatory core: \textbf{predictors operate exactly at the profitability threshold.} The flat results of Section~4 are not a sequence of implementation misfortunes; they are what must happen when a signal exists in-sample (54--72\% recovery proves it does) but its identifying features do not transfer to the deployment distribution. The oracle gap measures how much \emph{knowing the answer} would help --- not how much \emph{reading the question} can.
