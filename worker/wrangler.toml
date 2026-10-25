@@ -23,4 +23,7 @@ TOP_K = "5"
 MAX_CONTEXT_CHARS = "8000"
 MAX_TOKENS = "300"
 MODEL_PROVIDER = "cf"
-# MODEL_NAME = "@cf/meta/llama-3.2-3b-instruct"
+# Reranker: retrieve RERANK_CANDIDATES, re-score with RERANK_MODEL, keep TOP_K.
+RERANK = "true"
+RERANK_MODEL = "@cf/baai/bge-reranker-base-v1.5"
+RERANK_CANDIDATES = "20"

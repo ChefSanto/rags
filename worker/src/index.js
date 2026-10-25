@@ -3,11 +3,9 @@
  * All data endpoints require the X-Ingest-Key header when the INGEST_KEY secret
  * is set (the app-wide key). /health stays public.
  *
- * Generation provider is env-driven:
- *   MODEL_PROVIDER = "cf" | "openai" | "groq"   (default "cf")
- *   MODEL_NAME     = optional model override per provider
- * Secrets (never in the repo): OPENAI_KEY, GROQ_API_KEY.
- * Embeddings always use @cf/baai/bge-small-en-v1.5 (Vectorize dimension lock).
+ * Generation provider is env-driven: MODEL_PROVIDER = "cf" | "openai" | "groq".
+ * Retrieval: dual-index dense retrieval with optional reranking
+ * (RERANK=true re-scores top candidates with RERANK_MODEL before truncation).
  */
 
 const CORS = {
@@ -68,6 +66,7 @@ export default {
           service: "ai-lab-worker",
           protected: Boolean(env.INGEST_KEY),
           provider: env.MODEL_PROVIDER || "cf",
+          rerank: (env.RERANK || "false") === "true",
         });
       } else {
         resp = Response.json({ error: "see /health for routes" }, { status: 404 });
@@ -84,16 +83,39 @@ export default {
 async function retrieve(env, question, topK) {
   const emb = await env.AI.run("@cf/baai/bge-small-en-v1.5", { text: [question] });
   const vector = emb.data[0];
-  const fetchN = topK * 2;
+
+  const candidates = parseInt(env.RERANK_CANDIDATES || "20", 10);
+  const fetchN = Math.max(topK * 2, Math.ceil(candidates / 2));
+
   const [fiqaRes, persRes] = await Promise.all([
     env.VECTORIZE.query(vector, { topK: fetchN, returnMetadata: "all" }),
     env.VECTORIZE_PERSONAL.query(vector, { topK: fetchN, returnMetadata: "all" })
       .catch(() => ({ matches: [] })),
   ]);
-  const hits = [...(fiqaRes.matches || []), ...(persRes.matches || [])]
+  let hits = [...(fiqaRes.matches || []), ...(persRes.matches || [])]
     .sort((a, b) => b.score - a.score)
-    .slice(0, topK);
+    .slice(0, candidates);
 
+  // optional reranking: re-score query<->chunk with a cross-encoder
+  if ((env.RERANK || "false") === "true" && hits.length > topK) {
+    try {
+      const docs = hits.map((h) => ((h.metadata && h.metadata.text) || "").slice(0, 1200));
+      const rr = await env.AI.run(env.RERANK_MODEL || "@cf/baai/bge-reranker-base-v1.5", {
+        query: question,
+        documents: docs,
+      });
+      const scored = rr.response || rr.data || [];
+      const scoreOf = {};
+      for (const s of scored) scoreOf[s.id ?? s.index] = s.score;
+      hits = hits
+        .map((h, i) => ({ ...h, score: scoreOf[i] !== undefined ? scoreOf[i] : h.score }))
+        .sort((a, b) => b.score - a.score);
+    } catch (e) {
+      console.error("rerank failed; falling back to cosine order:", e);
+    }
+  }
+
+  hits = hits.slice(0, topK);
   const budget = parseInt(env.MAX_CONTEXT_CHARS || "3000", 10);
   let context = "";
   let used = 0;
@@ -130,7 +152,6 @@ async function generate(env, messages) {
       : "(empty response)";
   }
 
-  // default: Cloudflare Workers AI
   const model = env.MODEL_NAME || "@cf/meta/llama-3.2-3b-instruct";
   const gen = await env.AI.run(model, { messages, max_tokens: maxTokens });
   return (gen.response || "").trim();
