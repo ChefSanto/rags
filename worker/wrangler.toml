@@ -25,5 +25,5 @@ MAX_TOKENS = "300"
 MODEL_PROVIDER = "cf"
 # Reranker: retrieve RERANK_CANDIDATES, re-score with RERANK_MODEL, keep TOP_K.
 RERANK = "true"
-RERANK_MODEL = "@cf/baai/bge-reranker-base-v1.5"
+RERANK_MODEL = "@cf/baai/bge-reranker-base"
 RERANK_CANDIDATES = "20"
