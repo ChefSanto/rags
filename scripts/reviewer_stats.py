@@ -1,16 +1,13 @@
 #!/usr/bin/env python
-"""Reviewer-requested statistics (local, minutes).
+"""Reviewer-requested statistics, v2 (local, minutes).
 
-1. Unified baseline: every router number in the matrix recomputed against ONE
-   canonical test-query set (intersection across strategies), removing the
-   per-run subset wobble noted by reviewers.
-2. Pick accuracy: v0-style decision tree (the paper's best classifier) rerun
-   locally; bootstrap CI on per-query pick accuracy vs the oracle-best label.
-3. Paired bootstrap test: P(pick_accuracy > p*) over joint query resamples --
-   the formal version of "predictors operate at the break-even threshold".
-4. Hedging quantification: per-query, soft-oracle (weight grid) vs hard-oracle
-   (strategy argmax) vs the tuned constant weight -- how much of the hedging
-   advantage does the constant already capture?
+1. Unified baseline on ONE canonical test-query set (all three strategies).
+2. Pick accuracy AND routed gain of the v1 router (per-strategy score
+   regressors on lexical features, argmax routing) -- the model whose pooled
+   gain (+0.003) the paper cites. Bootstrap CI on pick accuracy.
+3. Paired bootstrap: P(pick_accuracy > p*) and the sign prediction:
+   where acc > p* routing should profit, where acc < p* it should lose.
+4. Hedging quantification: soft-oracle vs hard-oracle vs tuned constant.
 
 Run:  python3 -m pip install scikit-learn   (once)
       python3 scripts/reviewer_stats.py
@@ -33,13 +30,14 @@ from core.datasets.beir import load_beir  # noqa: E402
 from core.experiments.registry import load_results  # noqa: E402
 
 DATASETS = ["fiqa", "nfcorpus"]
-TUNED_W = {"fiqa": 0.7, "nfcorpus": 0.5}  # from the committed weight sweep
+TUNED_W = {"fiqa": 0.7, "nfcorpus": 0.5}  # committed weight sweep
 GRID = v5.GRID
 B = 10_000
 SEED = 42
+STRATS = ("bm25", "dense", "hybrid")
 
 
-def per_query_scores(runs, qrels, qids, k=10):
+def per_query_scores(runs, qrels, k=10):
     return {s: per_query_ndcg_at_k(runs[s], qrels, k) for s in runs}
 
 
@@ -47,8 +45,6 @@ def main() -> None:
     rng = np.random.default_rng(SEED)
     results_dir = str(ROOT / "experiments" / "results")
     results = load_results(results_dir)
-
-    all_print = []
     pooled = {}
 
     for name in DATASETS:
@@ -67,18 +63,16 @@ def main() -> None:
         texts = {q.id: q.text for q in ds.queries}
 
         test_q = [q for q in rv.load_split_qrels(ds_dir, "test")
-                  if all(q in runs3[s] for s in ("bm25", "dense", "hybrid"))
-                  and q in qrels and q in texts]
+                  if all(q in runs3[s] for s in STRATS) and q in qrels and q in texts]
+        n = len(test_q)
 
-        pstrat = per_query_scores(runs3, qrels, test_q)
-        S = np.array([[pstrat[s].get(q, 0.0) for s in ("bm25", "dense", "hybrid")]
-                      for q in test_q])
+        pstrat = per_query_scores(runs3, qrels)
+        S = np.array([[pstrat[s].get(q, 0.0) for s in STRATS] for q in test_q])
         uniform_means = S.mean(axis=0)
         best_u_idx = int(uniform_means.argmax())
         best_u = float(uniform_means[best_u_idx])
         oracle_hard = S.max(axis=1)
 
-        n = len(test_q)
         F = np.zeros((n, len(GRID)))
         for i, q in enumerate(test_q):
             for j, w in enumerate(GRID):
@@ -88,34 +82,49 @@ def main() -> None:
         const_scores = F[:, GRID.index(TUNED_W[name])]
 
         soft_beats_hard = oracle_soft > oracle_hard + 1e-12
-        hedge_gain_total = float((oracle_soft - oracle_hard).clip(min=0).sum())
+        hedge_mass = float((oracle_soft - oracle_hard).clip(min=0).sum())
         const_captured = float((const_scores - oracle_hard).clip(min=0).sum())
-        captured_frac = const_captured / hedge_gain_total if hedge_gain_total > 0 else 0.0
+        captured_frac = const_captured / hedge_mass if hedge_mass > 0 else 0.0
 
         wins = oracle_hard > best_u + 1e-9
         gains = np.where(wins, oracle_hard - best_u, 0.0)
         losses = np.where(wins, 0.0, best_u - (S.sum(axis=1) - S.max(axis=1)) / 2.0)
 
+        # ---- v1 router: per-strategy regressors on lexical features, argmax route
         n_docs, df = rv.corpus_stats(ds_dir, name)
         train_q = [q for q in rv.load_split_qrels(ds_dir, "train")
-                   if q in texts and q in qrels and all(q in runs3[s] for s in ("bm25", "dense", "hybrid"))]
-        strat_train = per_query_scores(runs3, qrels, train_q)
-        from sklearn.tree import DecisionTreeClassifier
-        X_train = [rv.query_features(texts[q], df, n_docs) for q in train_q]
-        y_train = [int(np.argmax([strat_train[s].get(q, 0.0) for s in ("bm25", "dense", "hybrid")]))
-                   for q in train_q]
-        tree = DecisionTreeClassifier(max_depth=4, min_samples_leaf=50, random_state=42)
-        tree.fit(X_train, y_train)
-        X_test = [rv.query_features(texts[q], df, n_docs) for q in test_q]
-        pred = tree.predict(X_test)
+                   if q in texts and q in qrels and all(q in runs3[s] for s in STRATS)]
+        strat_train = per_query_scores(runs3, qrels)
+        from sklearn.ensemble import GradientBoostingRegressor
+        X_train = np.array([rv.query_features(texts[q], df, n_docs) for q in train_q])
+        Y_train = np.array([[strat_train[s].get(q, 0.0) for s in STRATS] for q in train_q])
+        regs = []
+        for j in range(3):
+            m = GradientBoostingRegressor(n_estimators=200, max_depth=3, learning_rate=0.05,
+                                          subsample=0.8, random_state=42)
+            m.fit(X_train, Y_train[:, j])
+            regs.append(m)
+        X_test = np.array([rv.query_features(texts[q], df, n_docs) for q in test_q])
+        preds = np.column_stack([m.predict(X_test) for m in regs])
+        pred_label = preds.argmax(axis=1)
         oracle_label = S.argmax(axis=1)
-        correct = (pred == oracle_label).astype(float)
+        correct = (pred_label == oracle_label).astype(float)
+        routed_scores = S[np.arange(n), pred_label]
+        routed_gain = float(routed_scores.mean() - best_u)
+        delta = routed_scores - S[:, best_u_idx]
+        gain_ci = np.percentile(
+            delta[rng.integers(0, n, size=(B, n))].mean(axis=1), [2.5, 97.5])
+        margin = np.sort(S, axis=1)[:, -1] - np.sort(S, axis=1)[:, -2]
+        decisive = margin > 0.05
+        nd = int(decisive.sum())
+        acc_dec = float(correct[decisive].mean())
+        idd = rng.integers(0, max(nd, 1), size=(B, max(nd, 1)))
+        acc_dec_ci = np.percentile(correct[decisive][idd].mean(axis=1), [2.5, 97.5])
 
+        # ---- paired bootstrap: pick accuracy vs p*
         idx = rng.integers(0, n, size=(B, n))
         acc_b = correct[idx].mean(axis=1)
-        gain_b = gains[idx].sum(axis=1)
-        loss_b = losses[idx].sum(axis=1)
-        pstar_b = loss_b / (gain_b + loss_b)
+        pstar_b = losses[idx].sum(axis=1) / (gains[idx].sum(axis=1) + losses[idx].sum(axis=1))
         diff_b = acc_b - pstar_b
         acc_ci = np.percentile(acc_b, [2.5, 97.5])
         pstar_ci = np.percentile(pstar_b, [2.5, 97.5])
@@ -123,21 +132,22 @@ def main() -> None:
 
         sec = f"""### {name}
 - canonical test queries: {n}
-- unified best uniform: {['bm25','dense','hybrid'][best_u_idx]} @ {best_u:.4f}
-  (strategy means: bm25 {uniform_means[0]:.4f}, dense {uniform_means[1]:.4f}, hybrid {uniform_means[2]:.4f})
-- hard oracle {oracle_hard.mean():.4f} | soft oracle {oracle_soft.mean():.4f} | tuned constant {const_scores.mean():.4f}
+- unified best uniform: {STRATS[best_u_idx]} @ {best_u:.4f}
+- v1 router: pick accuracy {correct.mean():.1%} (95% CI [{acc_ci[0]:.1%}, {acc_ci[1]:.1%}]);
+  break-even p* {float(pstar_b.mean()):.1%} (95% CI [{pstar_ci[0]:.1%}, {pstar_ci[1]:.1%}]);
+  P(acc > p*) = {p_win:.3f}; ROUTED GAIN {routed_gain:+.4f} (95% CI [{gain_ci[0]:+.4f}, {gain_ci[1]:+.4f}])
+- decisive queries (oracle margin > 0.05): {nd}/{n} ({nd/n:.1%}); pick accuracy {acc_dec:.1%} (95% CI [{acc_dec_ci[0]:.1%}, {acc_dec_ci[1]:.1%}])
 - hedging: soft beats hard on {soft_beats_hard.mean():.1%} of queries;
-  tuned constant captures {captured_frac:.1%} of the positive hedge mass
-- pick accuracy {correct.mean():.1%} (95% CI [{acc_ci[0]:.1%}, {acc_ci[1]:.1%}])
-- break-even p* {float(pstar_b.mean()):.1%} (95% CI [{pstar_ci[0]:.1%}, {pstar_ci[1]:.1%}])
-- paired bootstrap P(pick accuracy > p*) = {p_win:.3f}
+  tuned constant captures {captured_frac:.1%} of positive hedge mass
 """
-        all_print.append(sec)
         print(sec)
         pooled[name] = dict(n=n, correct=correct, gains=gains, losses=losses,
-                            hedge=dict(soft_beats=soft_beats_hard.mean(),
-                                       captured=captured_frac))
+                            routed_gain=routed_gain, gain_ci=gain_ci, p_win=p_win,
+                            acc_dec=acc_dec, nd=nd,
+                            acc=float(correct.mean()), pstar=float(pstar_b.mean()),
+                            hedge=dict(soft_beats=soft_beats_hard.mean(), captured=captured_frac))
 
+    # ---- pooled
     correct = np.concatenate([pooled[d]["correct"] for d in DATASETS])
     gains = np.concatenate([pooled[d]["gains"] for d in DATASETS])
     losses = np.concatenate([pooled[d]["losses"] for d in DATASETS])
@@ -145,38 +155,31 @@ def main() -> None:
     idx = rng.integers(0, n, size=(B, n))
     acc_b = correct[idx].mean(axis=1)
     pstar_b = losses[idx].sum(axis=1) / (gains[idx].sum(axis=1) + losses[idx].sum(axis=1))
-    diff_b = acc_b - pstar_b
-    acc_ci = np.percentile(acc_b, [2.5, 97.5])
-    pstar_ci = np.percentile(pstar_b, [2.5, 97.5])
-    p_win = float((diff_b > 0).mean())
+    p_win = float((acc_b - pstar_b > 0).mean())
     cap = np.average([pooled[d]["hedge"]["captured"] for d in DATASETS],
                      weights=[pooled[d]["n"] for d in DATASETS])
     soft_beats = np.average([pooled[d]["hedge"]["soft_beats"] for d in DATASETS],
                             weights=[pooled[d]["n"] for d in DATASETS])
+    rgain_w = np.average([pooled[d]["routed_gain"] for d in DATASETS],
+                         weights=[pooled[d]["n"] for d in DATASETS])
 
-    pooled_sec = f"""### pooled ({n} queries)
-- pick accuracy {correct.mean():.1%} (95% CI [{acc_ci[0]:.1%}, {acc_ci[1]:.1%}])
-- break-even p* {float(pstar_b.mean()):.1%} (95% CI [{pstar_ci[0]:.1%}, {pstar_ci[1]:.1%}])
-- paired bootstrap P(pick accuracy > p*) = {p_win:.3f}
-- soft oracle beats hard on {soft_beats:.1%} of queries (weighted);
-  tuned constant captures {cap:.1%} of positive hedge mass
-"""
-    print(pooled_sec)
+    lines = [f"### pooled ({n} queries)",
+             f"- pick accuracy {correct.mean():.1%}; p* {float(pstar_b.mean()):.1%}; "
+             f"P(acc > p*) = {p_win:.3f}",
+             f"- routed gain (weighted): {rgain_w:+.4f}",
+             f"- soft beats hard on {soft_beats:.1%} of queries (weighted); "
+             f"constant captures {cap:.1%} of hedge mass", ""]
+    sign_ok = all((pooled[d]["routed_gain"] > 0) == (pooled[d]["acc"] > pooled[d]["pstar"])
+                  for d in DATASETS)
+    lines.append("per-domain sign check (routed gain sign == sign(acc - p*)): "
+                 + ("CONFIRMED on both domains" if sign_ok else "NOT clean — inspect"))
+    for d in DATASETS:
+        lines.append(f"  {d}: acc {pooled[d]['acc']:.1%} vs p* {pooled[d]['pstar']:.1%} "
+                     f"(P={pooled[d]['p_win']:.2f}) -> gain {pooled[d]['routed_gain']:+.4f} CI [{pooled[d]['gain_ci'][0]:+.4f}, {pooled[d]['gain_ci'][1]:+.4f}]; decisive pick acc {pooled[d]['acc_dec']:.1%} on {pooled[d]['nd']} q")
+    print("\n".join(lines))
 
-    verdict = (
-        "Reviewer-stats verdict for the paper:\n"
-        f"  pick accuracy {correct.mean():.1%} vs break-even {float(pstar_b.mean()):.1%}; "
-        f"P(acc > p*) = {p_win:.2f} over {B:,} paired resamples.\n"
-        + ("  -> cannot reject break-even operation: the CI overlaps p*.\n"
-           if p_win < 0.95 else
-           "  -> pick accuracy significantly exceeds p*; revisit the claim.\n")
-        + f"  The tuned constant weight already captures {cap:.0%} of the hedging\n"
-          "  mass that makes the soft oracle exceed the hard oracle."
-    )
-    print(verdict)
     out = ROOT / "experiments" / "results" / "reviewer-stats.md"
-    out.write_text("# Reviewer-requested statistics\n\n" + "\n".join(all_print)
-                   + pooled_sec + "\n```\n" + verdict + "\n```\n")
+    out.write_text("# Reviewer-requested statistics (v2)\n\n```\n" + "\n".join(lines) + "\n```\n")
     print("saved:", out)
 
 

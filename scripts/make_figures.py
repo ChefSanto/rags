@@ -126,13 +126,13 @@ plt.close(fig)
 # ------------------------------------------------------------ fig_breakeven
 domains = ["FiQA", "NFCorpus"]
 p_star = [44.7, 46.0]        # reviewer-stats.md bootstrap means
-achieved = [44.1, 57.6]      # v0 tree pick accuracy, retrained on canonical set
+achieved = [47.0, 38.6]      # v1 decisive-query pick accuracy (reviewer-stats v2)
 
 fig, ax = plt.subplots(figsize=(6.0, 3.4))
 x = range(len(domains))
 b1 = ax.bar([i - 0.18 for i in x], p_star, width=0.36, color=RED, label="break-even pick accuracy $p^*$")
 b2 = ax.bar([i + 0.18 for i in x], achieved, width=0.36, color=BLUE,
-            label="achieved pick accuracy (v0 tree, retrained)")
+            label="decisive-query pick accuracy (v1 router)")
 for b, v in zip(b1, p_star):
     ax.text(b.get_x() + b.get_width() / 2, v + 1, f"{v:.1f}%", ha="center", fontsize=9)
 for b, v in zip(b2, achieved):
