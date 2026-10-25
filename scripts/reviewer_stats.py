@@ -133,6 +133,18 @@ def main() -> None:
         delta_q = routed_scores - S[:, best_u_idx]
         gain_dec = float(delta_q[decisive].mean())
         gain_non = float(delta_q[~decisive].mean())
+        # weight-selection robustness: best w on TRAIN split only, scored on test
+        train_judged = [q for q in train_q if q in qrels]
+        sweep_train = {}
+        for w in GRID:
+            sc = [per_query_ndcg_at_k({q: v5.fuse(runs3['bm25'][q], runs3['dense'][q], w)}, {q: qrels[q]}, 10).get(q, 0.0) for q in train_judged]
+            sweep_train[w] = sum(sc) / max(len(sc), 1)
+        w_train = max(sweep_train, key=sweep_train.get)
+        flat = float(F[:, GRID.index(0.5):GRID.index(0.8) + 1].mean(axis=0).max()
+                     - F[:, GRID.index(0.5):GRID.index(0.8) + 1].mean(axis=0).min())
+        w_lines = (f'    weight selection: train-split-best w={w_train}, test score at w_train '
+                   f'{F[:, GRID.index(w_train)].mean():.4f} vs at 0.7/0.5 {const_scores.mean():.4f}; '
+                   f'test sweep flatness in [0.5,0.8] = {flat:.4f}')
         # reviewer v5: margin-gated routing (route only when the model is confident)
         pmargin = np.sort(preds, axis=1)[:, -1] - np.sort(preds, axis=1)[:, -2]
         gate_lines = []
@@ -145,7 +157,12 @@ def main() -> None:
             d_g = rg - S[:, best_u_idx]
             ci_g = np.percentile(d_g[rng.integers(0, n, size=(B, n))].mean(axis=1), [2.5, 97.5])
             gate_lines.append(f'    gate>{t}: routed {gate.mean():.1%}, gain {d_g.mean():+.4f} CI [{ci_g[0]:+.4f}, {ci_g[1]:+.4f}]')
+        from sklearn.metrics import roc_auc_score, average_precision_score
+        auc_dec = roc_auc_score(decisive.astype(int), pmargin)
+        ap_dec = average_precision_score(decisive.astype(int), pmargin)
+        gate_lines.append(f'    gate predictive value: AUC {auc_dec:.3f}, PR-AUC {ap_dec:.3f} (decisive base rate {decisive.mean():.1%})')
         gate_block = '\n'.join(gate_lines)
+        # gate predictive value: does predicted margin identify decisiveness?
 
         # ---- paired bootstrap: pick accuracy vs p*
         idx = rng.integers(0, n, size=(B, n))
@@ -166,6 +183,7 @@ def main() -> None:
 - decisive-subset break-even p* {float(pstar_dec.mean()):.1%} (95% CI [{pstar_dec_ci[0]:.1%}, {pstar_dec_ci[1]:.1%}]); win-rate-corrected formula p*={p_formula:.3f} (w={win_rate:.1%}, G={G:.3f}, L={L:.3f})
 - stratum routed gain: decisive {gain_dec:+.4f}, non-decisive {gain_non:+.4f}
 - margin-gated routing (predicted-margin threshold):
+{w_lines}
 {gate_block}
 - hedging: soft beats hard on {soft_beats_hard.mean():.1%} of queries;
   tuned constant captures {captured_frac:.1%} of positive hedge mass
