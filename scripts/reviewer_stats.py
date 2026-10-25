@@ -120,6 +120,32 @@ def main() -> None:
         acc_dec = float(correct[decisive].mean())
         idd = rng.integers(0, max(nd, 1), size=(B, max(nd, 1)))
         acc_dec_ci = np.percentile(correct[decisive][idd].mean(axis=1), [2.5, 97.5])
+        # reviewer v5: decisive-subset break-even + stratum gain decomposition
+        gains_d, losses_d = gains[decisive], losses[decisive]
+        nd2 = max(int(decisive.sum()), 1)
+        idd2 = rng.integers(0, nd2, size=(B, nd2))
+        pstar_dec = losses_d[idd2].sum(1) / (gains_d[idd2].sum(1) + losses_d[idd2].sum(1))
+        pstar_dec_ci = np.percentile(pstar_dec, [2.5, 97.5])
+        win_rate = float(wins.mean())
+        G = float(gains[wins].mean()) if wins.any() else 0.0
+        L = float(losses[~wins].mean()) if (~wins).any() else 0.0
+        p_formula = (1 - win_rate) * L / (win_rate * G + (1 - win_rate) * L) if (G + L) > 0 else 1.0
+        delta_q = routed_scores - S[:, best_u_idx]
+        gain_dec = float(delta_q[decisive].mean())
+        gain_non = float(delta_q[~decisive].mean())
+        # reviewer v5: margin-gated routing (route only when the model is confident)
+        pmargin = np.sort(preds, axis=1)[:, -1] - np.sort(preds, axis=1)[:, -2]
+        gate_lines = []
+        for t in (0.0, 0.02, 0.05, 0.1, 0.2):
+            gate = pmargin > t
+            if int(gate.sum()) < 10:
+                continue
+            rg = S[np.arange(n), pred_label].copy()
+            rg[~gate] = S[~gate, best_u_idx]
+            d_g = rg - S[:, best_u_idx]
+            ci_g = np.percentile(d_g[rng.integers(0, n, size=(B, n))].mean(axis=1), [2.5, 97.5])
+            gate_lines.append(f'    gate>{t}: routed {gate.mean():.1%}, gain {d_g.mean():+.4f} CI [{ci_g[0]:+.4f}, {ci_g[1]:+.4f}]')
+        gate_block = '\n'.join(gate_lines)
 
         # ---- paired bootstrap: pick accuracy vs p*
         idx = rng.integers(0, n, size=(B, n))
@@ -137,6 +163,10 @@ def main() -> None:
   break-even p* {float(pstar_b.mean()):.1%} (95% CI [{pstar_ci[0]:.1%}, {pstar_ci[1]:.1%}]);
   P(acc > p*) = {p_win:.3f}; ROUTED GAIN {routed_gain:+.4f} (95% CI [{gain_ci[0]:+.4f}, {gain_ci[1]:+.4f}])
 - decisive queries (oracle margin > 0.05): {nd}/{n} ({nd/n:.1%}); pick accuracy {acc_dec:.1%} (95% CI [{acc_dec_ci[0]:.1%}, {acc_dec_ci[1]:.1%}])
+- decisive-subset break-even p* {float(pstar_dec.mean()):.1%} (95% CI [{pstar_dec_ci[0]:.1%}, {pstar_dec_ci[1]:.1%}]); win-rate-corrected formula p*={p_formula:.3f} (w={win_rate:.1%}, G={G:.3f}, L={L:.3f})
+- stratum routed gain: decisive {gain_dec:+.4f}, non-decisive {gain_non:+.4f}
+- margin-gated routing (predicted-margin threshold):
+{gate_block}
 - hedging: soft beats hard on {soft_beats_hard.mean():.1%} of queries;
   tuned constant captures {captured_frac:.1%} of positive hedge mass
 """

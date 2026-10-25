@@ -124,25 +124,22 @@ fig.savefig(FIG / "fig_valley.png", dpi=180)
 plt.close(fig)
 
 # ------------------------------------------------------------ fig_breakeven
+# reviewer-stats v2: full-set and decisive-subset comparisons
 domains = ["FiQA", "NFCorpus"]
-p_star = [44.7, 46.0]        # reviewer-stats.md bootstrap means
-achieved = [47.0, 38.6]      # v1 decisive-query pick accuracy (reviewer-stats v2)
+full_pstar = [44.7, 45.9]; full_acc = [31.2, 28.2]
+dec_pstar = [29.9, 31.5];  dec_acc = [47.0, 38.6]
 
-fig, ax = plt.subplots(figsize=(6.0, 3.4))
-x = range(len(domains))
-b1 = ax.bar([i - 0.18 for i in x], p_star, width=0.36, color=RED, label="break-even pick accuracy $p^*$")
-b2 = ax.bar([i + 0.18 for i in x], achieved, width=0.36, color=BLUE,
-            label="decisive-query pick accuracy (v1 router)")
-for b, v in zip(b1, p_star):
-    ax.text(b.get_x() + b.get_width() / 2, v + 1, f"{v:.1f}%", ha="center", fontsize=9)
-for b, v in zip(b2, achieved):
-    ax.text(b.get_x() + b.get_width() / 2, v + 1, f"{v:.0f}%", ha="center", fontsize=9)
-ax.axhline(50, color=GRAY, ls=":", lw=1)
-ax.set_xticks(list(x), domains)
-ax.set_ylabel("%")
-ax.set_ylim(0, 70)
-ax.set_title("Predictors sit exactly at the profitability threshold")
-ax.legend(loc="lower right", fontsize=8)
+fig, axes = plt.subplots(1, 2, figsize=(9.2, 3.5), sharey=True)
+for ax, di, dom in zip(axes, [0, 1], domains):
+    vals = [full_pstar[di], full_acc[di], dec_pstar[di], dec_acc[di]]
+    cols = [RED, BLUE, RED, BLUE]
+    bars = ax.bar(["p* all", "acc all", "p* decis.", "acc decis."], vals, color=cols)
+    for b, v in zip(bars, vals):
+        ax.text(b.get_x() + b.get_width() / 2, v + 1, f"{v:.1f}", ha="center", fontsize=8)
+    ax.set_title(dom)
+    ax.set_ylim(0, 62)
+axes[0].set_ylabel("%")
+fig.suptitle("Pick accuracy vs break-even: all queries and decisive subset (oracle margin > 0.05)")
 fig.tight_layout()
 fig.savefig(FIG / "fig_breakeven.png", dpi=180)
 plt.close(fig)
