@@ -188,7 +188,7 @@ The matrix raises the question the failure descriptions cannot answer: is the or
 \[
 p^* = \frac{(1-w)\,L}{w\,G + (1-w)\,L},
 \]
-which gives 45.1\% (FiQA) and 45.5\% (NFCorpus) at our measured win rates. (The commonly quoted $L/(G+L)$ is the $w = 0.5$ special case; $w \approx 0.5$ made the naive estimate look consistent.) A 10{,}000-resample paired bootstrap cross-validates the closed form: 44.7\%/46.0\%, pooled 45.1\%.
+which gives 45.1\% (FiQA) and 45.5\% (NFCorpus) at our measured win rates ($w = 54.9\%$ and $49.5\%$, respectively). (The commonly quoted $L/(G+L)$ is the $w = 0.5$ special case; $w \approx 0.5$ made the naive estimate look consistent.) A 10{,}000-resample paired bootstrap cross-validates the closed form: 44.7\%/46.0\%, pooled 45.1\%.
 
 \textbf{Measured, with confidence intervals.} We retrain the paper's v1 router (per-strategy score regressors) on the canonical query set and bootstrap every quantity over 10{,}000 paired resamples. The economics seal the claim: routed gains are $-0.0006$ on FiQA (95\% CI $[-0.0122, +0.0108]$) and $+0.0076$ on NFCorpus (95\% CI $[-0.0030, +0.0184]$) --- both straddle zero.
 
