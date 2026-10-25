@@ -17,7 +17,7 @@
 \maketitle
 
 \begin{abstract}
-Per-query retrieval routing --- choosing BM25, dense retrieval, or fusion \emph{per query} --- is motivated by oracle analyses showing large headroom: a cheat that always picks the best strategy per query outperforms the best fixed strategy by 14--17\% nDCG on BEIR datasets. We set out to harvest that headroom and failed seven times, each failure in a different way. Across gradient-boosted routers on lexical and embedding features, cross-domain transfer, two generations of pseudo-labeled training data (document sentences and LLM-generated questions), soft routing by per-query fusion-weight regression, and zero-shot LLM routing, \textbf{no router beats a single tuned fusion weight} --- and the best-intentioned variants are \emph{worse} than doing nothing. We diagnose why, mechanism by mechanism: an alphabetical tie-breaking artifact that collapses classifiers; regression that predicts strategy \emph{levels} but never per-query \emph{deviations}; pseudo-queries that are lexical copies of their source documents; a non-convex quality surface in fusion weight that traps weight-regression; and LLM routers that either hedge to the safe answer (fusion) or commit to priors that are anti-predictive on BEIR. A break-even analysis closes the loop: the oracle's wins are abundant (half of all queries) but carry no query-side fingerprint beyond chance, so \emph{any} router built on reading the query operates exactly at its profitability threshold. We validate the stakes at the answer level: retrieval strategy choice propagates to grounded-answer quality, confirmed by a blind 90-judgment human evaluation. The practical recommendation is unfashionable and robust: sweep the weight, ship the constant. The artifact is a complete, deployed RAG platform with which every claim in this paper can be reproduced from a YAML config.
+Per-query retrieval routing --- choosing BM25, dense retrieval, or fusion \emph{per query} --- is motivated by oracle analyses showing large headroom: a cheat that always picks the best strategy per query outperforms the best fixed strategy by 14--17\% relative nDCG on BEIR datasets (honest train/test protocol; 12--13\% under the all-splits convention). We set out to harvest that headroom and failed seven times, each failure in a different way. Across gradient-boosted routers on lexical and embedding features, cross-domain transfer, two generations of pseudo-labeled training data (document sentences and LLM-generated questions), soft routing by per-query fusion-weight regression, and zero-shot LLM routing, \textbf{no router beats a single tuned fusion weight} --- and the best-intentioned variants are \emph{worse} than doing nothing. We diagnose why, mechanism by mechanism: an alphabetical tie-breaking artifact that collapses classifiers; regression that predicts strategy \emph{levels} but never per-query \emph{deviations}; pseudo-queries that are lexical copies of their source documents; a non-convex quality surface in fusion weight that traps weight-regression; and LLM routers that either hedge to the safe answer (fusion) or commit to priors that are anti-predictive on BEIR. A break-even analysis closes the loop: the oracle's wins are abundant (half of all queries) but carry no query-side fingerprint beyond chance, so \emph{any} router built on reading the query operates exactly at its profitability threshold. We validate the stakes at the answer level: retrieval strategy choice propagates to grounded-answer quality, confirmed by a blind 90-judgment human evaluation. The practical recommendation is unfashionable and robust: sweep the weight, ship the constant. The artifact is a complete, deployed RAG platform with which every claim in this paper can be reproduced from a YAML config.
 \end{abstract}
 
 \section{Introduction}
@@ -33,7 +33,7 @@ Our findings in one sentence: \textbf{the oracle gap is real, abundant, and unre
 
 \subsection{Claims}
 \begin{enumerate}
-\item On FiQA and NFCorpus, the per-query oracle beats the best fixed strategy by +14--17\% relative nDCG (Section~3); domain labels capture only +1.3\% of it (Section~4.1).
+\item On FiQA and NFCorpus, the per-query oracle beats the best fixed strategy by +14--17\% relative nDCG (Section~3, test-split protocol; +12--13\% all-splits); domain labels capture only +1.3\% of it (Section~4.1).
 \item Seven router families --- spanning feature, label-generation, soft-weight, and LLM paradigms --- all fail to beat a tuned uniform weight; five are worse than it (Section~4). Two failure mechanisms are, to our knowledge, undocumented: alphabetical tie-breaking bias in argmax labels under dense annotations (\S\ref{sec:v0}), and the non-convex weight-valley that collapses fusion-weight regression (\S\ref{sec:v5}).
 \item A break-even analysis explains the flat results: the oracle wins on roughly half of queries, but the required pick accuracy ($\sim$46--50\%) equals what query-feature predictors achieve by chance (Section~5).
 \item Strategy choice matters at the answer level --- grounding scores and blind human judgments both order dense $>$ hybrid $>$ bm25 identically --- so the routing question is worth asking even though current routers fail it (Section~6).
@@ -69,13 +69,13 @@ FiQA     & 0.2293 & 0.3680 & 0.3827 @ $w{=}0.7$ & \textbf{0.3827} & 0.4271 \\
 NFCorpus & 0.3013 & 0.3183 & 0.3374 @ $w{=}0.5$ & \textbf{0.3374} & 0.3818 \\
 \bottomrule
 \end{tabular}
-\caption{Baselines (all-splits nDCG@10) and oracle. Oracle gaps: +11.6\% relative (FiQA), +13.2\% (NFCorpus).}
+\caption{Baselines and oracle under the \emph{all-splits} protocol (train+dev+test merged; comparability with published BEIR numbers). Oracle gaps: +11.6\% relative (FiQA), +13.2\% (NFCorpus). All router results in this paper (Table~\ref{tab:matrix}) use the honest \emph{test-split} protocol instead (gaps +16.9\%/+14.1\%); the phenomenon holds under both.}
 \label{tab:baselines}
 \end{table}
 
 Head-to-head, no strategy dominates: BM25 beats dense on 31.3\% of NFCorpus queries but only 14.5\% of FiQA queries. The winner \emph{varies} --- the precondition for routing to matter.
 
-Under the honest test-split protocol the pattern holds: oracle 0.4338 (FiQA) and 0.3842 (NFCorpus) vs best-uniform 0.3711 and 0.3368 --- \textbf{+16.9\% and +14.1\% relative} (weighted oracle 0.4173 vs 0.3597).
+Under the honest test-split protocol the pattern holds: oracle 0.4338 (FiQA) and 0.3842 (NFCorpus) vs best-uniform 0.3711 and 0.3368 --- \textbf{+16.9\% and +14.1\% relative} (weighted oracle 0.4173 vs 0.3597). Protocol note: Table~\ref{tab:baselines} is all-splits; Table~\ref{tab:matrix} is test-split; the gap holds under both (\S2.2).
 
 One observation frames everything that follows: the \textbf{soft oracle exceeds the hard oracle}. Allowing per-query fusion weights $w \in \{0, 0.1, \dots, 1.0\}$ (RRF-fused BM25+dense rankings, weight grid-searched per query) reaches 0.4413/0.3884 --- \emph{above} per-query strategy selection (0.4338/0.3842). Fusion hedges: blending two thin, complementary rankings rescues queries no single strategy serves. The ceiling is higher than the routing literature's usual number --- and we will see it is no more reachable.
 
@@ -125,8 +125,8 @@ RCT-MARS (\S\ref{sec:related}) resolves the hard-routing paradox by going soft: 
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.8\textwidth]{fig_valley.png}
-\caption{FiQA test nDCG@10 as a function of fusion weight (uniform sweep; router-v5 report). The curve is non-convex: quality collapses between $w{=}0.3$ and $w{=}0.4$, then jumps at $w{=}0.5$. v5-direct's predicted mean weight (0.323) lands in the shaded valley --- the mechanism of its $-25\%$ recovery.}
+\includegraphics[width=\textwidth]{fig_valley.png}
+\caption{Per-query fusion-weight sweep recomputed from committed run artifacts (test split; solid = mean nDCG@10, band = interquartile range across queries). FiQA's mean surface is non-convex --- collapse through $w{=}0.3$--$0.4$, jump at $w{=}0.5$ --- and v5-direct's predicted mean weight (0.323, dashed) lands in the shaded valley: the mechanism of its $-25\%$ recovery. NFCorpus's surface is flatter, consistent with its smaller routing losses.}
 \label{fig:valley}
 \end{figure}
 \subsection{v6 --- LLM-as-router (zero-shot)}
@@ -160,7 +160,7 @@ v6h & LLM (hedge allowed) & 0.3599 & $+0.1\%$ & $+0.0\%$ & hedge degeneracy \\
 v6f & LLM (forced choice) & 0.3386 & $-5.9\%$ & $-21\%$ & priors anti-predictive \\
 \bottomrule
 \end{tabular}
-\caption{All attempts, honest protocol, weighted test nDCG@10 (baseline uniform 0.3597, oracle 0.4173). Scores as reported per experiment; small baseline differences reflect per-run test subsets.}
+\caption{All attempts, honest train/test protocol (test split only), weighted nDCG@10 (baseline uniform 0.3597, oracle 0.4173; all-splits baselines in Table~\ref{tab:baselines}). Scores as reported per experiment; sub-0.001 baseline differences across experiments reflect per-run query subsets.}
 \label{tab:matrix}
 \end{table}
 
