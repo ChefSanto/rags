@@ -125,14 +125,14 @@ plt.close(fig)
 
 # ------------------------------------------------------------ fig_breakeven
 domains = ["FiQA", "NFCorpus"]
-p_star = [49.6, 45.5]
-achieved = [51, 51]
+p_star = [44.7, 46.0]        # reviewer-stats.md bootstrap means
+achieved = [44.1, 57.6]      # v0 tree pick accuracy, retrained on canonical set
 
 fig, ax = plt.subplots(figsize=(6.0, 3.4))
 x = range(len(domains))
 b1 = ax.bar([i - 0.18 for i in x], p_star, width=0.36, color=RED, label="break-even pick accuracy $p^*$")
 b2 = ax.bar([i + 0.18 for i in x], achieved, width=0.36, color=BLUE,
-            label="achieved predictor accuracy (approx. chance)")
+            label="achieved pick accuracy (v0 tree, retrained)")
 for b, v in zip(b1, p_star):
     ax.text(b.get_x() + b.get_width() / 2, v + 1, f"{v:.1f}%", ha="center", fontsize=9)
 for b, v in zip(b2, achieved):
@@ -140,7 +140,7 @@ for b, v in zip(b2, achieved):
 ax.axhline(50, color=GRAY, ls=":", lw=1)
 ax.set_xticks(list(x), domains)
 ax.set_ylabel("%")
-ax.set_ylim(0, 62)
+ax.set_ylim(0, 70)
 ax.set_title("Predictors sit exactly at the profitability threshold")
 ax.legend(loc="lower right", fontsize=8)
 fig.tight_layout()

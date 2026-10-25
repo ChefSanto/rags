@@ -49,16 +49,24 @@ def _local_run(path_str):
         p = ROOT / "artifacts" / "runs" / p.name
     return json.loads(p.read_text())
 
+def _artifact_path(path_str):
+    """Run artifacts may carry absolute paths from the producing machine
+    (e.g. /kaggle/working/...); fall back to the local committed file."""
+    p = Path(path_str)
+    return p if p.exists() else ROOT / "artifacts" / "runs" / p.name
+
+
 def load_runs(dataset_name: str, results_dir: str) -> dict:
+    """Newest bm25/dense run artifacts per dataset, existence-checked locally."""
     results = [r for r in load_results(results_dir)
                if r.get("dataset") == dataset_name and r.get("run_artifact")]
-    by = {}
+    by: dict[str, dict] = {}
     for r in sorted(results, key=lambda r: r["experiment_id"]):
-        by[r["retriever"]] = r
+        if r["retriever"] in ("bm25", "dense") and _artifact_path(r["run_artifact"]).exists():
+            by[r["retriever"]] = r
     if "bm25" not in by or "dense" not in by:
         raise SystemExit(f"{dataset_name}: need bm25+dense run artifacts")
-    return {s: _local_run(r["run_artifact"]) for s, r in by.items() if s in ("bm25", "dense")}
-
+    return {s: json.loads(_artifact_path(r["run_artifact"]).read_text()) for s, r in by.items()}
 
 def fuse(bm25_ids: list, dense_ids: list, w: float) -> list:
     """RRF-style weighted rank fusion. Deterministic ties (doc id asc)."""
