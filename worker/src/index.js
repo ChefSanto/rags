@@ -1,11 +1,12 @@
 /**
  * AI Lab worker — serving layer of the working RAG.
- * All data endpoints require the X-Ingest-Key header when the INGEST_KEY secret
- * is set (the app-wide key). /health stays public.
+ * Endpoints (all data endpoints require X-Ingest-Key when INGEST_KEY is set):
+ *   POST /query | POST /chat | GET /chats | GET /chat?id= | POST /chat-meta | DELETE /chat
+ *   GET /documents | POST /ingest-text | POST /extract | GET /logs | GET /health
  *
  * Generation provider is env-driven: MODEL_PROVIDER = "cf" | "openai" | "groq".
- * Retrieval: dual-index dense retrieval with optional reranking
- * (RERANK=true re-scores top candidates with RERANK_MODEL before truncation).
+ * Retrieval: dual-index dense retrieval with optional reranking (RERANK=true).
+ * Extraction: structured field extraction via POST /extract (EXTRACT_MAX_TOKENS).
  */
 
 const CORS = {
@@ -14,7 +15,7 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type, X-Ingest-Key",
 };
 
-const PROTECTED = new Set(["/query", "/chat", "/chats", "/chat-meta", "/ingest-text", "/documents", "/logs"]);
+const PROTECTED = new Set(["/query", "/chat", "/chats", "/chat-meta", "/ingest-text", "/documents", "/logs", "/extract"]);
 
 const SYSTEM = {
   role: "system",
@@ -23,6 +24,14 @@ const SYSTEM = {
     "If the context is insufficient, say you don't know. " +
     "Use the Conversation history only to resolve follow-up references " +
     "(pronouns, 'the second method'); factual claims must come from the Context.",
+};
+
+const EXTRACT_SYSTEM = {
+  role: "system",
+  content:
+    "You extract structured fields from a document. Respond with a single JSON object " +
+    "mapping each requested field name to its value (string, number, or null if the " +
+    "field is absent or unclear). No prose, no markdown fences.",
 };
 
 const CONTEXT_PROMPT = (ctx, q) =>
@@ -58,6 +67,8 @@ export default {
         resp = await handleDocuments(env);
       } else if (request.method === "POST" && url.pathname === "/ingest-text") {
         resp = await handleIngest(request, env);
+      } else if (request.method === "POST" && url.pathname === "/extract") {
+        resp = await handleExtract(request, env);
       } else if (url.pathname === "/logs") {
         resp = await handleLogs(url, env);
       } else if (url.pathname === "/health") {
@@ -96,11 +107,10 @@ async function retrieve(env, question, topK) {
     .sort((a, b) => b.score - a.score)
     .slice(0, candidates);
 
-  // optional reranking: re-score query<->chunk with a cross-encoder
   if ((env.RERANK || "false") === "true" && hits.length > topK) {
     try {
       const docs = hits.map((h) => ((h.metadata && h.metadata.text) || "").slice(0, 1200));
-      const rr = await env.AI.run(env.RERANK_MODEL || "@cf/baai/bge-reranker-base-v1.5", {
+      const rr = await env.AI.run(env.RERANK_MODEL || "@cf/baai/bge-reranker-base", {
         query: question,
         documents: docs,
       });
@@ -131,8 +141,8 @@ async function retrieve(env, question, topK) {
   return { context, sources };
 }
 
-async function generate(env, messages) {
-  const maxTokens = parseInt(env.MAX_TOKENS || "300", 10);
+async function generate(env, messages, maxTokensOverride) {
+  const maxTokens = maxTokensOverride || parseInt(env.MAX_TOKENS || "300", 10);
   const provider = (env.MODEL_PROVIDER || "cf").toLowerCase();
 
   if (provider === "openai" || provider === "groq") {
@@ -155,6 +165,17 @@ async function generate(env, messages) {
   const model = env.MODEL_NAME || "@cf/meta/llama-3.2-3b-instruct";
   const gen = await env.AI.run(model, { messages, max_tokens: maxTokens });
   return (gen.response || "").trim();
+}
+
+function extractJson(text) {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) return null;
+  try {
+    return JSON.parse(text.slice(start, end + 1));
+  } catch {
+    return null;
+  }
 }
 
 async function logQuery(env, question, answer, n, ms) {
@@ -305,6 +326,36 @@ async function handleIngest(request, env) {
     ).bind(String(body.name).slice(0, 200), parseInt(body.total_chunks || chunks.length, 10)).run();
   }
   return Response.json({ uploaded });
+}
+
+async function handleExtract(request, env) {
+  const t0 = Date.now();
+  const body = await request.json().catch(() => null);
+  const text = ((body && body.text) || "").slice(0, 30000);
+  const fields = body && body.fields;
+  if (!text.trim() || !Array.isArray(fields) || fields.length === 0 || fields.length > 30) {
+    return Response.json({ error: "body must be {text, fields: [{name, description}, ...]}" }, { status: 400 });
+  }
+  const names = fields.map((f) => String(f.name || "").trim()).filter(Boolean);
+  if (!names.length) return Response.json({ error: "fields need names" }, { status: 400 });
+
+  const spec = fields
+    .map((f) => `- ${f.name}${f.description ? `: ${f.description}` : ""}`)
+    .join("\n");
+  const user = `Fields to extract:\n${spec}\n\nDocument:\n"""\n${text}\n"""\n\nJSON:`;
+  const raw = await generate(env, [EXTRACT_SYSTEM, { role: "user", content: user }],
+    parseInt(env.EXTRACT_MAX_TOKENS || "500", 10));
+
+  const parsed = extractJson(raw);
+  if (!parsed) {
+    return Response.json({ error: "model did not return valid JSON", raw: raw.slice(0, 500) }, { status: 422 });
+  }
+  const out = {};
+  for (const n of names) out[n] = parsed[n] !== undefined ? parsed[n] : null;
+  return Response.json({
+    fields: out,
+    elapsed_ms: Date.now() - t0,
+  });
 }
 
 async function handleLogs(url, env) {

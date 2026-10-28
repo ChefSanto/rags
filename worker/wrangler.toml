@@ -22,6 +22,7 @@ database_id = "170f8fe2-4a07-4636-952a-2cb826fc8786"
 TOP_K = "5"
 MAX_CONTEXT_CHARS = "8000"
 MAX_TOKENS = "300"
+EXTRACT_MAX_TOKENS = "500"
 MODEL_PROVIDER = "cf"
 # Reranker: retrieve RERANK_CANDIDATES, re-score with RERANK_MODEL, keep TOP_K.
 RERANK = "true"
