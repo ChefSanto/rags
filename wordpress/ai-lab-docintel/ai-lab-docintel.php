@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       AI Lab Doc Intelligence
  * Description:       Upload a PDF, extract structured fields via the AI Lab worker, review and correct, approve, export CSV.
- * Version:           0.1.0
+ * Version:           0.1.1
  * Author:            AI Lab
  * Requires at least: 6.0
  */
@@ -96,7 +96,7 @@ add_action('admin_post_ailab_csv', function () {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename=ai-lab-extractions.csv');
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['doc_name', 'extracted_at']);
+    fputcsv($out, ['doc_name', 'field', 'value', 'extracted_at']);
     foreach ($rows as $r) {
         $fields = json_decode($r['approved_json'], true) ?: [];
         foreach ($fields as $name => $value) {
