@@ -6,72 +6,134 @@
 <title>AI Lab</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
-  :root { --bg:#0f1115; --side:#13151b; --panel:#171a21; --fg:#e6e9ef; --dim:#9aa3b2; --accent:#5b9dff; --ok:#4ade80; --line:#232936; }
-  * { box-sizing:border-box; }
-  body { margin:0; font:15px/1.5 -apple-system, system-ui, sans-serif; background:var(--bg); color:var(--fg); height:100vh; display:flex; overflow:hidden; }
+:root{
+  --bg:#0b0d12; --side:#10131a; --panel:#151924; --panel2:#1b2130;
+  --fg:#e8ebf2; --dim:#8b93a7; --line:#232a3a; --accent:#5b9dff; --accent2:#7c5bff;
+  --ok:#3ddc84; --err:#ff6b6b; --radius:14px;
+  --shadow:0 6px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.55 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  background:var(--bg);color:var(--fg);height:100vh;overflow:hidden}
+button{font:inherit;cursor:pointer}
+input,textarea{font:inherit}
 
-  /* sidebar (ChatGPT-style) */
-  aside { width:268px; background:var(--side); border-right:1px solid var(--line); display:flex; flex-direction:column; flex-shrink:0; }
-  .brand { padding:16px; font-weight:700; font-size:17px; border-bottom:1px solid var(--line); }
-  .brand span { color:var(--accent); }
-  .newchat { margin:12px; }
-  .chatlist { flex:1; overflow-y:auto; padding:4px 8px; }
-  .chatitem { padding:9px 12px; border-radius:8px; cursor:pointer; color:var(--dim); font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .chatitem:hover { background:#1b2029; color:var(--fg); }
-  .chatitem.active { background:#223047; color:var(--fg); }
-  .sidenav { border-top:1px solid var(--line); padding:8px; }
-  .navitem { display:flex; gap:10px; align-items:center; width:100%; text-align:left; background:none; border:0; color:var(--dim); padding:10px 12px; border-radius:8px; cursor:pointer; font-size:14px; }
-  .navitem:hover { background:#1b2029; color:var(--fg); }
-  .navitem.active { background:#223047; color:var(--fg); }
+/* ---------- unlock gate ---------- */
+#gate{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(1200px 600px at 30% 20%,#16203a 0%,var(--bg) 60%)}
+#gate .card{background:rgba(21,25,36,.9);border:1px solid var(--line);border-radius:20px;
+  padding:40px 36px;width:380px;box-shadow:var(--shadow);backdrop-filter:blur(8px);text-align:center}
+#gate .logo{font-size:26px;font-weight:800;letter-spacing:.3px;margin-bottom:4px}
+#gate .logo span{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+#gate .sub{color:var(--dim);font-size:13px;margin-bottom:26px}
+#gate input{width:100%;background:#0c0f16;border:1px solid var(--line);color:var(--fg);border-radius:10px;
+  padding:13px 15px;outline:none;transition:border-color .15s}
+#gate input:focus{border-color:var(--accent)}
+#gate .hint{color:var(--err);font-size:12px;min-height:16px;margin-top:8px}
+#gate button{margin-top:10px;width:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));
+  border:0;color:#fff;font-weight:700;border-radius:10px;padding:13px}
+#gate button:disabled{opacity:.6;cursor:wait}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #fff6;border-top-color:#fff;
+  border-radius:50%;animation:rot .7s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes rot{to{transform:rotate(360deg)}}
 
-  /* main */
-  main { flex:1; display:flex; flex-direction:column; min-width:0; }
-  .topbar { padding:14px 24px; border-bottom:1px solid var(--line); display:flex; align-items:baseline; gap:12px; }
-  .topbar h2 { font-size:16px; margin:0; }
-  .topbar .dim { color:var(--dim); font-size:12px; }
-  .content { flex:1; overflow-y:auto; padding:0 24px 24px; display:none; }
-  .content.active { display:block; }
+/* ---------- app layout ---------- */
+#app{display:none;height:100vh}
+#app.on{display:flex}
+aside{width:272px;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0}
+.brand{padding:18px 18px 14px;font-weight:800;font-size:17px}
+.brand span{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.newchat{margin:0 14px 10px;background:linear-gradient(90deg,var(--accent),var(--accent2));border:0;color:#fff;
+  font-weight:700;border-radius:11px;padding:11px}
+.chatlist{flex:1;overflow-y:auto;padding:4px 10px}
+.chatitem{display:flex;align-items:center;gap:6px;padding:9px 11px;border-radius:9px;color:var(--dim);
+  font-size:14px;cursor:pointer}
+.chatitem:hover{background:var(--panel2);color:var(--fg)}
+.chatitem.active{background:#22304d;color:var(--fg)}
+.chatitem .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chatitem .acts{visibility:hidden;font-size:12px}
+.chatitem:hover .acts{visibility:visible}
+.chatitem .acts a{text-decoration:none;margin-left:4px}
+.sidenav{border-top:1px solid var(--line);padding:8px}
+.navitem{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:none;border:0;
+  color:var(--dim);padding:10px 12px;border-radius:9px;font-size:14px}
+.navitem:hover{background:var(--panel2);color:var(--fg)}
+.navitem.active{background:#22304d;color:var(--fg)}
+.healthline{padding:4px 14px 10px;font-size:11px;color:var(--dim)}
+.healthline a{color:var(--dim)}
 
-  input[type=text], input[type=password], input:not([type]), textarea { width:100%; background:#0c0e12; color:var(--fg); border:1px solid #2c3340; border-radius:10px; padding:12px 14px; font:inherit; }
-  button.go { background:var(--accent); color:#08111f; border:0; border-radius:10px; padding:11px 18px; font-weight:600; cursor:pointer; }
-  button.ghost { background:#232936; color:var(--fg); border:1px solid #2c3340; border-radius:10px; padding:10px 18px; cursor:pointer; }
-  .meta { color:var(--dim); font-size:12px; margin-top:8px; }
-  .err { color:#ff7b72; }
-  .drop { border:2px dashed #2c3340; border-radius:14px; padding:36px; text-align:center; color:var(--dim); margin-top:6px; }
-  .drop.over { border-color:var(--accent); color:var(--fg); }
-  .narrow { max-width:760px; margin:0 auto; padding-top:20px; }
-  table { width:100%; border-collapse:collapse; margin-top:12px; font-size:13px; }
-  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { color:var(--dim); font-weight:600; }
-  td.num { font-variant-numeric:tabular-nums; }
-  a { color:var(--accent); }
+main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{padding:14px 26px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:12px}
+.topbar h2{font-size:16px;margin:0}
+.topbar .dim{color:var(--dim);font-size:12px}
+.content{flex:1;overflow-y:auto;display:none}
+.content.active{display:block}
+.narrow{max-width:800px;margin:0 auto;padding:22px 22px 40px}
+input[type=text],input[type=password],input:not([type]),textarea{width:100%;background:#0c0f16;color:var(--fg);
+  border:1px solid var(--line);border-radius:11px;padding:12px 14px;outline:none;transition:border-color .15s}
+input:focus,textarea:focus{border-color:var(--accent)}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:0;color:#fff;font-weight:700;
+  border-radius:11px;padding:11px 18px}
+.btn.ghost{background:var(--panel2);color:var(--fg);border:1px solid var(--line)}
+.meta{color:var(--dim);font-size:12px;margin-top:8px}
+.err{color:var(--err)}
+.drop{border:2px dashed var(--line);border-radius:16px;padding:36px;text-align:center;color:var(--dim);
+  margin-top:8px;cursor:pointer;transition:border-color .15s}
+.drop.over{border-color:var(--accent);color:var(--fg)}
+table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-weight:600}
+td.num{font-variant-numeric:tabular-nums}
+a{color:var(--accent)}
 
-  /* chat */
-  .chatcol { max-width:820px; margin:0 auto; display:flex; flex-direction:column; height:100%; }
-  .msgs { flex:1; overflow-y:auto; padding:16px 0; }
-  .msg { margin:14px 0; display:flex; flex-direction:column; }
-  .bubble { max-width:85%; padding:12px 16px; border-radius:16px; white-space:pre-wrap; line-height:1.55; }
-  .msg.user { align-items:flex-end; }
-  .msg.user .bubble { background:#223047; border-bottom-right-radius:4px; }
-  .msg.bot { align-items:flex-start; }
-  .msg.bot .bubble { background:var(--panel); border:1px solid var(--line); border-bottom-left-radius:4px; }
-  .src { font-size:12px; color:var(--dim); border-left:2px solid #2c3340; padding-left:10px; margin:8px 0 0 6px; max-width:85%; }
-  .src .score { color:var(--ok); }
-  .composer { display:flex; gap:10px; padding:14px 0 4px; border-top:1px solid var(--line); }
-  .empty { color:var(--dim); text-align:center; margin-top:18vh; font-size:15px; }
+/* chat */
+.chatcol{max-width:840px;margin:0 auto;height:100%;display:flex;flex-direction:column;padding:0 22px}
+.msgs{flex:1;overflow-y:auto;padding:18px 0}
+.msg{margin:14px 0;display:flex;flex-direction:column;animation:fadeup .25s ease}
+@keyframes fadeup{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.bubble{max-width:85%;padding:12px 16px;border-radius:16px;white-space:pre-wrap;line-height:1.6}
+.msg.user{align-items:flex-end}
+.msg.user .bubble{background:linear-gradient(135deg,#263b66,#22304d);border-bottom-right-radius:5px}
+.msg.bot{align-items:flex-start}
+.msg.bot .bubble{background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:5px}
+.src{font-size:12px;color:var(--dim);border-left:2px solid var(--line);padding-left:10px;margin:8px 0 0 6px;max-width:85%}
+.src .score{color:var(--ok)}
+.msgrow{display:flex;gap:8px;align-items:flex-start}
+.copybtn{background:none;border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:2px 8px;font-size:11px;margin-top:6px}
+.copybtn:hover{color:var(--fg);border-color:var(--dim)}
+.composer{display:flex;gap:10px;padding:14px 0 6px;border-top:1px solid var(--line)}
+.empty{color:var(--dim);text-align:center;margin-top:16vh;font-size:15px;line-height:1.9}
+.empty .big{font-size:40px;margin-bottom:8px}
+
+@media(max-width:860px){
+  aside{display:none}
+  .chatcol{padding:0 14px}
+}
 </style>
 </head>
 <body>
+
+<div id="gate">
+  <div class="card">
+    <div class="logo">AI <span>Lab</span></div>
+    <div class="sub">This dashboard is key-protected.<br>Enter the app passphrase to unlock.</div>
+    <input type="password" id="gateKey" placeholder="app passphrase" onkeydown="if(event.key==='Enter')tryUnlock()">
+    <div class="hint" id="gateHint"></div>
+    <button id="gateBtn" onclick="tryUnlock()">Unlock</button>
+  </div>
+</div>
+
+<div id="app">
 <aside>
   <div class="brand">AI <span>Lab</span></div>
-  <button class="go newchat" onclick="newChat()">+ New chat</button>
-  <div class="chatlist" id="chatList"><div class="meta" style="padding:8px 12px">loading…</div></div>
+  <button class="newchat" onclick="newChat()">+ New chat</button>
+  <div class="chatlist" id="chatList"></div>
   <div class="sidenav">
-    <button class="navitem" data-view="upload">📄 &nbsp;Upload docs</button>
-    <button class="navitem" data-view="docs">🗂️ &nbsp;Documents</button>
-    <button class="navitem" data-view="logs">📋 &nbsp;Query log</button>
-    <button class="navitem" data-view="lab">🧪 &nbsp;Lab status</button>
-    <div class="meta" style="padding:8px 12px 2px">worker: <a id="workerUrl" href="#" target="_blank">health</a></div>
+    <button class="navitem" data-view="upload">📄&nbsp; Upload docs</button>
+    <button class="navitem" data-view="docs">🗂️&nbsp; Documents</button>
+    <button class="navitem" data-view="logs">📋&nbsp; Query log</button>
+    <button class="navitem" data-view="lab">🧪&nbsp; Lab status</button>
+    <div class="healthline">worker: <a id="workerUrl" target="_blank">health</a></div>
   </div>
 </aside>
 
@@ -80,169 +142,185 @@
 
   <div class="content active" id="view-chat">
     <div class="chatcol">
-      <div class="msgs" id="msgs"><div class="empty">Ask about your documents or the FiQA corpus.<br>Each conversation keeps its own context.</div></div>
+      <div class="msgs" id="msgs"><div class="empty"><div class="big">💬</div>Ask about your documents or the corpus.<br>Each conversation keeps its own context.</div></div>
       <div class="composer">
         <input type="text" id="chatIn" placeholder="Message AI Lab…" onkeydown="if(event.key==='Enter')send()">
-        <button class="go" onclick="send()">Send</button>
+        <button class="btn" onclick="send()">Send</button>
       </div>
     </div>
   </div>
 
   <div class="content" id="view-upload"><div class="narrow">
-    <div id="ingestKeyRow">
-      <span class="dim">Ingest key (stored in this browser only):</span>
-      <div style="display:flex;gap:8px;margin-top:6px">
-        <input type="password" id="ingestKey" placeholder="your ingest passphrase">
-        <button class="ghost" onclick="localStorage.setItem('ingestKey', document.getElementById('ingestKey').value); up('ingest key saved')">Save</button>
-      </div>
-    </div>
-    <div class="drop" id="drop" style="margin-top:16px">Drop PDF(s) here (or click to choose)</div>
+    <div class="drop" id="drop">Drop PDF(s) here (or click to choose)</div>
     <input type="file" id="filePick" accept="application/pdf" multiple style="display:none">
-    <div class="meta" style="margin-top:16px">…or paste text directly:</div>
+    <div class="meta" style="margin-top:14px">…or paste text directly:</div>
     <textarea id="paste" rows="5" placeholder="Paste any text: notes, an article, meeting minutes…"></textarea>
     <input type="text" id="pasteName" placeholder="Name for this document (e.g. meeting-notes)" style="margin-top:8px">
-    <button class="go" onclick="uploadPaste()">Upload pasted text</button>
+    <button class="btn" onclick="uploadPaste()" style="margin-top:10px">Upload pasted text</button>
     <div id="upOut"></div>
   </div></div>
 
   <div class="content" id="view-docs"><div class="narrow">
-    <span class="dim">Your uploaded documents (personal index). <button class="go" onclick="loadDocs()">Refresh</button></span>
+    <span class="meta">Your uploaded documents (personal index). <button class="btn" onclick="loadDocs()">Refresh</button></span>
     <div id="docsOut"></div>
   </div></div>
 
   <div class="content" id="view-logs"><div class="narrow">
-    <button class="go" onclick="loadLogs()">Refresh</button>
+    <button class="btn" onclick="loadLogs()">Refresh</button>
     <div id="logsOut"></div>
   </div></div>
 
   <div class="content" id="view-lab"><div class="narrow">
-    <span class="dim">Loaded live from the GitHub repo (experiments/results). <button class="go" onclick="loadLab()">Reload</button></span>
+    <span class="meta">Benchmark results, live from the GitHub repo. <button class="btn" onclick="loadLab()">Reload</button></span>
     <div id="labOut"></div>
   </div></div>
 </main>
+</div>
 
 <script>
 const WORKER = "https://ai-lab-worker.antwibrand.workers.dev";
 const GH_API = "https://api.github.com/repos/ChefSanto/rags/contents/experiments/results";
 document.getElementById("workerUrl").href = WORKER + "/health";
-document.getElementById("ingestKey").value = localStorage.getItem("ingestKey") || "";
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-const keyH = () => ({ "X-Ingest-Key": localStorage.getItem("ingestKey") || "" });
-const TITLES = { chat: ["Chat", ""], upload: ["Upload documents", "PDF or pasted text → personal index"], docs: ["Documents", "your uploaded files"], logs: ["Query log", "every question, answers logged"], lab: ["Lab status", "benchmark results live from GitHub"] };
+/* ---------- gate ---------- */
+const gate = document.getElementById("gate"), app = document.getElementById("app");
+function key() { return localStorage.getItem("ailabKey") || ""; }
+async function tryUnlock() {
+  const k = document.getElementById("gateKey").value.trim();
+  const hint = document.getElementById("gateHint"), btn = document.getElementById("gateBtn");
+  if (!k) { hint.textContent = "enter the passphrase"; return; }
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>checking…';
+  try {
+    const r = await fetch(WORKER + "/chats", { headers: { "X-Ingest-Key": k } });
+    if (r.status === 401) {
+      hint.textContent = "invalid passphrase — try again";
+      localStorage.removeItem("ailabKey");
+    } else if (r.ok) {
+      localStorage.setItem("ailabKey", k);
+      enter();
+    } else {
+      hint.textContent = "worker error " + r.status;
+    }
+  } catch (e) {
+    hint.textContent = "cannot reach worker: " + e.message;
+  }
+  btn.disabled = false; btn.textContent = "Unlock";
+}
+function enter() {
+  gate.style.display = "none";
+  app.classList.add("on");
+  boot();
+}
+async function boot() {
+  // validate stored key; re-gate if invalid
+  try {
+    const r = await fetch(WORKER + "/chats", { headers: { "X-Ingest-Key": key() } });
+    if (r.status === 401) { localStorage.removeItem("ailabKey"); location.reload(); return; }
+    if (!r.ok) { document.getElementById("gateHint").textContent = "worker error " + r.status; return; }
+  } catch (e) {
+    document.getElementById("gateHint").textContent = "cannot reach worker — check connection";
+    return;
+  }
+  enter();
+}
+if (key()) boot();  // returning visitor: validate silently, gate only if bad
 
-function showView(view) {
+/* ---------- api helper: every call carries the key; 401 re-gates ---------- */
+async function api(path, opts = {}) {
+  const r = await fetch(WORKER + path, {
+    ...opts,
+    headers: { "Content-Type": "application/json", "X-Ingest-Key": key(), ...(opts.headers || {}) },
+  });
+  if (r.status === 401) { localStorage.removeItem("ailabKey"); location.reload(); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || ("HTTP " + r.status));
+  return j;
+}
+
+const TITLES = { chat:["Chat",""], upload:["Upload documents","PDF or pasted text -> personal index"],
+  docs:["Documents","your uploaded files"], logs:["Query log","every question, answers logged"], lab:["Lab status","benchmark results live from GitHub"] };
+function showView(v) {
   document.querySelectorAll(".content").forEach(x => x.classList.remove("active"));
-  document.querySelectorAll(".navitem").forEach(x => x.classList.toggle("active", x.dataset.view === view));
-  document.getElementById("view-" + view).classList.add("active");
-  document.getElementById("viewTitle").textContent = TITLES[view][0];
-  document.getElementById("viewSub").textContent = TITLES[view][1];
-  if (view === "logs") loadLogs();
-  if (view === "lab") loadLab();
-  if (view === "docs") loadDocs();
+  document.querySelectorAll(".navitem").forEach(x => x.classList.toggle("active", x.dataset.view === v));
+  document.getElementById("view-" + v).classList.add("active");
+  document.getElementById("viewTitle").textContent = TITLES[v][0];
+  document.getElementById("viewSub").textContent = TITLES[v][1];
+  if (v === "logs") loadLogs();
+  if (v === "lab") loadLab();
+  if (v === "docs") loadDocs();
 }
-for (const b of document.querySelectorAll(".navitem")) b.onclick = () => showView(b.dataset.view);
-
-function up(m) { document.getElementById("upOut").innerHTML = '<div class="meta">' + escapeHtml(m) + '</div>'; }
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-}
+document.querySelectorAll(".navitem").forEach(b => b.onclick = () => showView(b.dataset.view));
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
 /* ---------- chats ---------- */
 let currentChat = null, busy = false;
-
 async function loadChats() {
   try {
-    const j = await (await fetch(WORKER + "/chats", { headers: keyH() })).json();
+    const j = await api("/chats");
     const list = document.getElementById("chatList");
-    if (!j.chats || !j.chats.length) {
-      list.innerHTML = '<div class="meta" style="padding:8px 12px">No conversations yet.</div>';
-      return;
-    }
+    if (!j.chats || !j.chats.length) { list.innerHTML = '<div class="meta" style="padding:8px 12px">No conversations yet.</div>'; return; }
     list.innerHTML = "";
     for (const c of j.chats) {
       const d = document.createElement("div");
       d.className = "chatitem" + (c.id === currentChat ? " active" : "");
       d.title = c.title;
-      d.style.display = "flex"; d.style.justifyContent = "space-between"; d.style.alignItems = "center"; d.style.gap = "6px";
-      const span = document.createElement("span");
-      span.textContent = c.title;
-      span.style.cssText = "overflow:hidden;text-overflow:ellipsis;flex:1;cursor:pointer";
-      span.onclick = () => openChat(c.id);
-      const acts = document.createElement("span");
-      acts.innerHTML = '<a href="#" title="rename">✏️</a>&nbsp;<a href="#" title="delete">🗑</a>';
-      acts.style.visibility = "hidden";
-      d.onmouseenter = () => acts.style.visibility = "visible";
-      d.onmouseleave = () => acts.style.visibility = "hidden";
+      d.innerHTML = '<span class="t"></span><span class="acts"><a href="#" title="rename">✏️</a><a href="#" title="delete">🗑</a></span>';
+      d.querySelector(".t").textContent = c.title;
+      d.querySelector(".t").onclick = () => openChat(c.id);
+      const acts = d.querySelector(".acts");
       acts.children[0].onclick = async (e) => {
         e.preventDefault();
         const t = prompt("Rename chat:", c.title);
-        if (t && t.trim()) {
-          await fetch(WORKER + "/chat-meta", { method: "POST",
-            headers: { "Content-Type": "application/json", ...keyH() },
-            body: JSON.stringify({ id: c.id, title: t.trim().slice(0, 80) }) });
-          loadChats();
-        }
+        if (t && t.trim()) { await api("/chat-meta", { method: "POST", body: JSON.stringify({ id: c.id, title: t.trim().slice(0,80) }) }); loadChats(); }
       };
       acts.children[1].onclick = async (e) => {
         e.preventDefault();
         if (!confirm('Delete chat "' + c.title + '"?')) return;
-        await fetch(WORKER + "/chat?id=" + encodeURIComponent(c.id), { method: "DELETE", headers: keyH() });
+        await api("/chat?id=" + encodeURIComponent(c.id), { method: "DELETE" });
         if (currentChat === c.id) newChat();
         loadChats();
       };
-      d.appendChild(span); d.appendChild(acts);
       list.appendChild(d);
     }
-  } catch (e) {
-    document.getElementById("chatList").innerHTML = '<div class="meta err">' + escapeHtml(String(e)) + '</div>';
-  }
+  } catch (e) { document.getElementById("chatList").innerHTML = '<div class="meta err">' + esc(e.message) + '</div>'; }
 }
-
 function newChat() {
   currentChat = null;
-  const m = document.getElementById("msgs");
-  m.innerHTML = '<div class="empty">Ask about your documents or the FiQA corpus.<br>Each conversation keeps its own context.</div>';
+  document.getElementById("msgs").innerHTML = '<div class="empty"><div class="big">💬</div>Ask about your documents or the corpus.<br>Each conversation keeps its own context.</div>';
   document.querySelectorAll(".chatitem").forEach(x => x.classList.remove("active"));
   showView("chat");
   document.getElementById("chatIn").focus();
 }
-
 async function openChat(id) {
   try {
-    const j = await (await fetch(WORKER + "/chat?id=" + encodeURIComponent(id), { headers: keyH() })).json();
+    const j = await api("/chat?id=" + encodeURIComponent(id));
     currentChat = id;
-    const m = document.getElementById("msgs");
-    m.innerHTML = "";
+    const m = document.getElementById("msgs"); m.innerHTML = "";
     for (const msg of j.messages || []) appendMsg(msg.role, msg.content, []);
-    showView("chat");
-    loadChats();
-    scrollBottom();
-  } catch (e) { alert("failed to load chat: " + e); }
+    showView("chat"); loadChats(); scrollBottom();
+  } catch (e) { alert("failed to load chat: " + e.message); }
 }
-
 function appendMsg(role, content, sources) {
   const m = document.getElementById("msgs");
   const empty = m.querySelector(".empty"); if (empty) empty.remove();
   const wrap = document.createElement("div");
   wrap.className = "msg " + (role === "user" ? "user" : "bot");
-  let html = '<div class="bubble">' + escapeHtml(content) + '</div>';
+  let html = '<div class="msgrow"><div class="bubble">' + esc(content) + '</div></div>';
+  if (role !== "user") html += '<button class="copybtn" onclick="copyText(this)">copy</button>';
   for (const s of sources) {
-    html += '<div class="src"><span class="score">' + (s.score ?? 0).toFixed(3) + '</span> ' +
-            '#' + escapeHtml(String(s.id)) + ' — ' + escapeHtml(s.preview) + '…</div>';
+    html += '<div class="src"><span class="score">' + (s.score ?? 0).toFixed(3) + '</span> #' +
+            esc(String(s.id)) + ' — ' + esc(s.preview) + '…</div>';
   }
   wrap.innerHTML = html;
-  m.appendChild(wrap);
-  scrollBottom();
+  m.appendChild(wrap); scrollBottom();
   return wrap;
 }
-
-function scrollBottom() {
-  const m = document.getElementById("msgs");
-  m.scrollTop = m.scrollHeight;
+function copyText(btn) {
+  const text = btn.parentElement.querySelector(".bubble").textContent;
+  navigator.clipboard.writeText(text).then(() => { btn.textContent = "copied"; setTimeout(() => btn.textContent = "copy", 1200); });
 }
-
+function scrollBottom() { const m = document.getElementById("msgs"); m.scrollTop = m.scrollHeight; }
 async function send() {
   const input = document.getElementById("chatIn");
   const message = input.value.trim();
@@ -251,24 +329,18 @@ async function send() {
   appendMsg("user", message, []);
   const thinking = appendMsg("bot", "thinking…", []);
   try {
-    const r = await fetch(WORKER + "/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...keyH() },
-      body: JSON.stringify({ chat_id: currentChat, message }),
-    });
-    const j = await r.json();
-    if (!r.ok) { if (r.status === 401) showKeyModal(); thinking.querySelector(".bubble").textContent = "Error: " + (j.error || r.status); return; }
+    const j = await api("/chat", { method: "POST", body: JSON.stringify({ chat_id: currentChat, message }) });
     currentChat = j.chat_id;
     thinking.querySelector(".bubble").textContent = j.answer;
     let srcs = "";
     for (const s of j.sources) {
-      srcs += '<div class="src"><span class="score">' + (s.score ?? 0).toFixed(3) + '</span> ' +
-              '#' + escapeHtml(String(s.id)) + ' — ' + escapeHtml(s.preview) + '…</div>';
+      srcs += '<div class="src"><span class="score">' + (s.score ?? 0).toFixed(3) + '</span> #' +
+              esc(String(s.id)) + ' — ' + esc(s.preview) + '…</div>';
     }
     thinking.insertAdjacentHTML("beforeend", srcs);
     loadChats();
   } catch (e) {
-    thinking.querySelector(".bubble").textContent = "Fetch failed: " + e;
+    thinking.querySelector(".bubble").textContent = "Error: " + e.message;
   } finally { busy = false; input.focus(); }
 }
 
@@ -276,33 +348,25 @@ async function send() {
 const drop = document.getElementById("drop");
 drop.onclick = () => document.getElementById("filePick").click();
 document.getElementById("filePick").onchange = (e) => handleFiles([...e.target.files]);
-["dragover", "dragenter"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
-["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+["dragover","dragenter"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
 drop.addEventListener("drop", e => handleFiles([...e.dataTransfer.files]));
-
-async function handleFiles(files) {
-  for (const f of files) await handleFile(f);
-}
-
+function up(m){ document.getElementById("upOut").innerHTML = '<div class="meta">' + esc(m) + '</div>'; }
+async function handleFiles(files) { for (const f of files) await handleFile(f); }
 function chunkText(text, size, overlap) {
   size = size || 1000; overlap = overlap || 200;
   text = text.replace(/\s+/g, " ").trim();
   if (!text) return [];
-  const chunks = [];
-  let start = 0;
+  const chunks = []; let start = 0;
   while (start < text.length) {
     let end = Math.min(start + size, text.length);
-    if (end < text.length) {
-      const b = text.lastIndexOf(" ", end);
-      if (b > start + size / 2) end = b;
-    }
+    if (end < text.length) { const b = text.lastIndexOf(" ", end); if (b > start + size/2) end = b; }
     chunks.push(text.slice(start, end).trim());
     if (end === text.length) break;
     start = end - overlap;
   }
   return chunks.filter(c => c.length > 40);
 }
-
 async function handleFile(file) {
   try {
     up("extracting " + file.name + "…");
@@ -312,91 +376,62 @@ async function handleFile(file) {
       const page = await pdf.getPage(p);
       const tc = await page.getTextContent();
       const t = tc.items.map(i => i.str).join(" ");
-      if (t.trim()) segments.push({ seg: "p" + (p - 1), text: t });
+      if (t.trim()) segments.push({ seg: "p" + (p-1), text: t });
       up("extracting " + file.name + "… page " + p + "/" + pdf.numPages);
     }
-    const base = file.name.replace(/\.pdf$/i, "");
-    await sendChunks(base, segments);
-  } catch (e) {
-    up("failed on " + file.name + ": " + e.message + " (text-based PDFs only for now)");
-  }
+    await sendChunks(file.name.replace(/\.pdf$/i, ""), segments);
+  } catch (e) { up("failed on " + file.name + ": " + e.message + " (text-based PDFs only)"); }
 }
-
 async function uploadPaste() {
   const text = document.getElementById("paste").value;
   const name = document.getElementById("pasteName").value.trim() || "pasted-text";
   if (!text.trim()) return;
   await sendChunks(name.replace(/[^\w.-]+/g, "-"), [{ seg: "t0", text }]);
 }
-
 async function sendChunks(base, segments) {
-  const key = localStorage.getItem("ingestKey") || "";
   const all = [];
   for (const s of segments) {
-    chunkText(s.text).forEach((c, j) =>
-      all.push({ id: (base + "-" + s.seg + "-c" + j).slice(0, 200), text: c }));
+    chunkText(s.text).forEach((c, j) => all.push({ id: (base + "-" + s.seg + "-c" + j).slice(0,200), text: c }));
   }
   if (!all.length) { up("no usable text found"); return; }
   let done = 0;
   for (let i = 0; i < all.length; i += 500) {
     const part = all.slice(i, i + 500);
-    const r = await fetch(WORKER + "/ingest-text", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...keyH() },
-      body: JSON.stringify({ chunks: part, name: base, total_chunks: all.length }),
-    });
-    const j = await r.json();
-    if (!r.ok) { up("upload failed: " + (j.error || r.status)); return; }
+    try {
+      await api("/ingest-text", { method: "POST", body: JSON.stringify({ chunks: part, name: base, total_chunks: all.length }) });
+    } catch (e) { up("upload failed: " + e.message); return; }
     done += part.length;
     up("uploading " + base + "… " + done + "/" + all.length);
   }
   up("done — " + base + ": " + done + " chunks uploaded.");
 }
 
-/* ---------- documents ---------- */
+/* ---------- docs / logs / lab ---------- */
 async function loadDocs() {
-  const outEl = document.getElementById("docsOut");
-  outEl.innerHTML = '<div class="meta">loading…</div>';
+  const out = document.getElementById("docsOut");
+  out.innerHTML = '<div class="meta">loading…</div>';
   try {
-    const j = await (await fetch(WORKER + "/documents", { headers: keyH() })).json();
-    if (!j.documents || !j.documents.length) {
-      outEl.innerHTML = '<div class="meta">Nothing uploaded yet. Use Upload docs to add PDFs or paste text.</div>';
-      return;
-    }
-    let html = '<table><tr><th>document</th><th>chunks</th><th>last updated (UTC)</th></tr>';
-    for (const d of j.documents) {
-      html += '<tr><td>' + escapeHtml(d.name) + '</td><td class="num">' + d.chunks +
-              '</td><td class="dim">' + d.updated_at + '</td></tr>';
-    }
-    outEl.innerHTML = html + '</table><div class="meta">Note: documents uploaded via the terminal script before tracking existed may be missing — re-upload via the browser once to register them.</div>';
-  } catch (e) {
-    outEl.innerHTML = '<div class="err">Fetch failed: ' + escapeHtml(String(e)) + '</div>';
-  }
+    const j = await api("/documents");
+    if (!j.documents || !j.documents.length) { out.innerHTML = '<div class="meta">Nothing uploaded yet.</div>'; return; }
+    let html = "<table><tr><th>document</th><th>chunks</th><th>updated (UTC)</th></tr>";
+    for (const d of j.documents) html += "<tr><td>" + esc(d.name) + "</td><td class='num'>" + d.chunks + "</td><td class='meta'>" + esc(d.updated_at) + "</td></tr>";
+    out.innerHTML = html + "</table>";
+  } catch (e) { out.innerHTML = '<div class="meta err">' + esc(e.message) + '</div>'; }
 }
-
-/* ---------- logs / lab ---------- */
 async function loadLogs() {
-  const outEl = document.getElementById("logsOut");
-  outEl.innerHTML = '<div class="meta">loading…</div>';
+  const out = document.getElementById("logsOut");
+  out.innerHTML = '<div class="meta">loading…</div>';
   try {
-    const r = await fetch(WORKER + "/logs?limit=50", { headers: keyH() });
-    const j = await r.json();
-    if (!j.logs || !j.logs.length) { outEl.innerHTML = '<div class="meta">No queries logged yet.</div>'; return; }
-    let html = '<table><tr><th>#</th><th>when (UTC)</th><th>question</th><th>src</th><th>ms</th></tr>';
-    for (const l of j.logs) {
-      html += '<tr><td>' + l.id + '</td><td class="dim">' + l.created_at + '</td><td>' +
-              escapeHtml(l.question) + '</td><td class="num">' + l.num_sources +
-              '</td><td class="num">' + l.elapsed_ms + '</td></tr>';
-    }
-    outEl.innerHTML = html + '</table>';
-  } catch (e) {
-    outEl.innerHTML = '<div class="err">Fetch failed: ' + escapeHtml(String(e)) + '</div>';
-  }
+    const j = await api("/logs?limit=50");
+    if (!j.logs || !j.logs.length) { out.innerHTML = '<div class="meta">No queries logged yet.</div>'; return; }
+    let html = "<table><tr><th>#</th><th>when (UTC)</th><th>question</th><th>src</th><th>ms</th></tr>";
+    for (const l of j.logs) html += "<tr><td>" + l.id + "</td><td class='meta'>" + esc(l.created_at) + "</td><td>" + esc(l.question) + "</td><td class='num'>" + l.num_sources + "</td><td class='num'>" + l.elapsed_ms + "</td></tr>";
+    out.innerHTML = html + "</table>";
+  } catch (e) { out.innerHTML = '<div class="meta err">' + esc(e.message) + "</div>"; }
 }
-
 async function loadLab() {
-  const outEl = document.getElementById("labOut");
-  outEl.innerHTML = '<div class="meta">loading from GitHub…</div>';
+  const out = document.getElementById("labOut");
+  out.innerHTML = '<div class="meta">loading from GitHub…</div>';
   try {
     const listing = await (await fetch(GH_API)).json();
     const files = listing.filter(f => f.name.endsWith(".json"));
@@ -405,51 +440,22 @@ async function loadLab() {
       try {
         const r = await (await fetch(f.download_url)).json();
         if (!r.metrics) continue;
-        rows.push({
-          name: r.name, dataset: r.dataset, retriever: r.retriever,
+        rows.push({ name: r.name, dataset: r.dataset, retriever: r.retriever,
           ndcg: r.metrics.ndcg_at_10, grounding: r.metrics.answer_grounding ?? null,
-          commit: (r.metadata && r.metadata.git_commit || "").slice(0, 7),
-        });
+          commit: (r.metadata && r.metadata.git_commit || "").slice(0,7) });
       } catch (_) {}
     }
-    rows.sort((a, b) => (a.dataset + a.retriever).localeCompare(b.dataset + b.retriever));
-    let html = '<table><tr><th>experiment</th><th>dataset</th><th>retriever</th><th>nDCG@10</th><th>grounding</th><th>commit</th></tr>';
-    for (const r of rows) {
-      html += '<tr><td>' + escapeHtml(r.name) + '</td><td>' + escapeHtml(r.dataset) + '</td><td>' +
-              escapeHtml(r.retriever) + '</td><td class="num">' + (r.ndcg ?? "–") + '</td><td class="num">' +
-              (r.grounding ?? "–") + '</td><td class="dim">' + r.commit + '</td></tr>';
-    }
+    rows.sort((a,b) => (a.dataset + a.retriever).localeCompare(b.dataset + b.retriever));
+    let html = "<table><tr><th>experiment</th><th>dataset</th><th>retriever</th><th>nDCG@10</th><th>grounding</th><th>commit</th></tr>";
+    for (const r of rows) html += "<tr><td>" + esc(r.name) + "</td><td>" + esc(r.dataset) + "</td><td>" + esc(r.retriever) + "</td><td class='num'>" + (r.ndcg ?? "–") + "</td><td class='num'>" + (r.grounding ?? "–") + "</td><td class='meta'>" + r.commit + "</td></tr>";
     const reports = listing.filter(f => f.name.endsWith(".md"));
     if (reports.length) {
-      html += '</table><div class="meta" style="margin-top:14px">Analysis reports: ';
-      html += reports.map(f => '<a href="' + f.download_url + '" target="_blank">' + f.name.slice(0, 40) + '…</a>').join(" &middot; ");
-      html += '</div>';
+      html += "</table><div class='meta' style='margin-top:14px'>Reports: " +
+        reports.map(f => "<a href='" + f.download_url + "' target='_blank'>" + esc(f.name.slice(0,40)) + "…</a>").join(" · ") + "</div>";
     }
-    outEl.innerHTML = html;
-  } catch (e) {
-    outEl.innerHTML = '<div class="err">GitHub fetch failed: ' + escapeHtml(String(e)) + '</div>';
-  }
+    out.innerHTML = html;
+  } catch (e) { out.innerHTML = '<div class="meta err">GitHub fetch failed: ' + esc(e.message) + "</div>"; }
 }
-
-loadChats();
-</script>
-<div id="keyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;align-items:center;justify-content:center">
-  <div style="background:var(--panel);border:1px solid #2c3340;border-radius:14px;padding:22px;width:380px">
-    <div style="font-weight:600;margin-bottom:6px">Enter app key</div>
-    <div class="meta" style="margin:0 0 10px">This dashboard is key-protected. Enter the passphrase to unlock.</div>
-    <input type="password" id="modalKey" placeholder="app passphrase">
-    <div style="margin-top:12px;text-align:right"><button class="go" onclick="saveModalKey()">Unlock</button></div>
-  </div>
-</div>
-<script>
-function showKeyModal() { document.getElementById("keyModal").style.display = "flex"; }
-function saveModalKey() {
-  localStorage.setItem("ingestKey", document.getElementById("modalKey").value);
-  document.getElementById("ingestKey").value = document.getElementById("modalKey").value;
-  document.getElementById("keyModal").style.display = "none";
-  loadChats(); loadDocs(); loadLogs();
-}
-if (!localStorage.getItem("ingestKey")) showKeyModal();
 </script>
 </body>
 </html>
