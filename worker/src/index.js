@@ -164,7 +164,8 @@ async function generate(env, messages, maxTokensOverride) {
 
   const model = env.MODEL_NAME || "@cf/meta/llama-3.2-3b-instruct";
   const gen = await env.AI.run(model, { messages, max_tokens: maxTokens });
-  return (gen.response || "").trim();
+  const out = gen.response ?? "";
+  return (typeof out === "string" ? out : JSON.stringify(out)).trim();
 }
 
 function extractJson(text) {
