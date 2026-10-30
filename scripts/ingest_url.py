@@ -67,7 +67,8 @@ def main() -> None:
         req = urllib.request.Request(
             WORKER + "/ingest-text",
             data=json.dumps({"chunks": part, "name": slug, "total_chunks": len(chunks)}).encode(),
-            headers={"Content-Type": "application/json", "X-Ingest-Key": key},
+            headers={"Content-Type": "application/json", "X-Ingest-Key": key,
+                     "User-Agent": "curl/8.5.0"},  # Cloudflare bot-management rejects urllib UAs
         )
         with urllib.request.urlopen(req, timeout=120) as r:
             r.read()
