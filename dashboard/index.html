@@ -210,7 +210,7 @@ async function tryUnlock() {
 function enter() {
   gate.style.display = "none";
   app.classList.add("on");
-  boot();
+  loadChats();
 }
 async function boot() {
   // validate stored key; re-gate if invalid
