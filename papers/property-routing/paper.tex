@@ -25,7 +25,7 @@ Retrieval-Augmented Generation systems are only as good as their retriever, and 
 
 The field's motivating evidence is the \textbf{oracle analysis}: score every strategy on every query, let a cheat pick the per-query maximum, and measure the gap over the best fixed strategy. Gaps of 10--20\% are common, and they have launched a research program of learned routers.
 
-This paper is the controlled study of that program's premise. We built a reproducible experimentation platform (Section~2), established the oracle gap on two BEIR domains (Section~3), and then attempted to capture it with seven router families spanning the design space: feature-based classification and score regression, per-corpus pseudo-labeled training data of two generations, cross-domain transfer, soft routing via per-query fusion weights, and zero-shot LLM routing (Section~4). \textbf{None beats a tuned uniform fusion weight.} Each failure carries a diagnosed mechanism, and the mechanisms --- not just the outcomes --- are the paper's contribution.
+This paper is the controlled study of that program's premise. We built a reproducible experimentation platform (Section~2), established the oracle gap on three BEIR domains (Section~3), and then attempted to capture it with seven router families spanning the design space: feature-based classification and score regression, per-corpus pseudo-labeled training data of two generations, cross-domain transfer, soft routing via per-query fusion weights, and zero-shot LLM routing (Section~4). \textbf{None beats a tuned uniform fusion weight.} Each failure carries a diagnosed mechanism, and the mechanisms --- not just the outcomes --- are the paper's contribution.
 
 Concurrent and independent work (RCT-MARS, published August 2026 while this study was underway) identified the same core paradox --- ``no learned hard router beats the strongest fixed method despite a large oracle ceiling'' --- on a five-strategy, six-benchmark stack, and showed that \emph{soft} routing (learned per-query fusion weights) recovers part of the gap. Our study, conducted independently on a different stack and protocol, extends the result to soft routing on BEIR-style train/test splits, and identifies why: soft routing's known ceiling (RRF-equivalence) coincides with the tuned-fusion baseline once the baseline is itself fusion --- its direct weight-regression variant fails catastrophically (via the weight-valley mechanism we document), while its RRF-equivalent variant has no headroom. The paper adds what a paradox paper cannot: a break-even theory explaining why every paradigm lands at zero (Section~5), a decisive-stratum decomposition that localizes where routing profits exist and why they are unreachable from query-side information (Section~5), a human-validated answer-level analysis (Section~6), and an end-to-end artifact.
 
@@ -33,7 +33,7 @@ Our findings in one sentence: \textbf{the oracle gap is real, abundant, and conc
 
 \subsection{Claims}
 \begin{enumerate}
-\item On FiQA and NFCorpus, the per-query oracle beats the best fixed strategy by +14--17\% relative nDCG (Section~3, test-split protocol; +12--13\% all-splits); domain labels improve the combined score by only +1.3\% (0.3580 vs 0.3532), a small fraction of the oracle gap (Section~4.1).
+\item On FiQA and NFCorpus, the per-query oracle beats the best fixed strategy by +14--17\% relative nDCG (Section~3, test-split protocol; +12--13\% all-splits on FiQA/NFCorpus; SciFact corroborates all-splits at +7.4\%); domain labels improve the combined score by only +1.3\% (0.3580 vs 0.3532), a small fraction of the oracle gap (Section~4.1).
 \item Seven router families --- spanning feature, label-generation, soft-weight, and LLM paradigms --- all fail to beat a tuned uniform weight; five are worse than it (Section~4). Two failure mechanisms are, in the routing literature we surveyed, undocumented: alphabetical tie-breaking bias in argmax labels under dense annotations (\S\ref{sec:v0}), and the non-convex weight-valley that collapses fusion-weight regression (\S\ref{sec:v5}).
 \item A break-even analysis explains the flat results: with win rate $w$ and margins $G, L$, break-even pick accuracy is $p^* = \frac{(1-w)L}{wG+(1-w)L} \approx 45\%$; routers win-identify at chance overall, and although the decisive-query stratum is profitable for a router that could be routed there ($+0.036$ nDCG against a ${\sim}30\%$ decisive threshold), the router's predicted margin does not identify which queries are decisive, so margin-gated routing recovers none of it. Realized routed gains are $-0.0006$/$+0.0076$ nDCG per domain, with confidence intervals straddling zero (Section~5, reviewer statistics in the artifact).
 \item Strategy choice matters at the answer level --- grounding scores and blind human judgments both order dense $>$ hybrid $>$ bm25 identically --- so the routing question is worth asking even though current routers fail it (Section~6).
@@ -45,7 +45,7 @@ Our findings in one sentence: \textbf{the oracle gap is real, abundant, and conc
 All experiments run on \textbf{AI Lab}, a deliberately small reproducibility platform (the repository is the artifact). An experiment is a YAML file (dataset, retrieval strategy and parameters, seed, metrics); a runner executes it and writes (a)~a result JSON with metrics and full provenance (git commit, seed, package versions, hardware), and (b)~the ranked run as a machine-readable artifact. Canonical runs execute on Kaggle GPU; results and run artifacts are committed to git, making every analysis in this paper executable from a fresh clone. Retrieval implementations include an inverted-index BM25 with document-frequency filtering, dense retrieval over \texttt{all-MiniLM-L6-v2}, and min--max normalized score fusion.
 
 \subsection{Data and evaluation}
-BEIR-format datasets: \textbf{FiQA} (finance, 57{,}638 documents, 6{,}648 queries with judgments) and \textbf{NFCorpus} (biomedical, 3{,}633 documents, 3{,}237 queries). Two complementary evaluation conventions are used and clearly separated:
+BEIR-format datasets: \textbf{FiQA} (finance, 57{,}638 documents, 6{,}648 queries with judgments), \textbf{NFCorpus} (biomedical, 3{,}633 documents, 3{,}237 queries), and \textbf{SciFact} (scientific claim verification, 5{,}183 documents, 1{,}109 queries with judgments). Two complementary evaluation conventions are used and clearly separated:
 \begin{itemize}
 \item \textbf{All-splits} (train+dev+test merged): for baseline tables and comparability with published BEIR numbers.
 \item \textbf{Honest train/test protocol}: qrels are split by BEIR's train/dev/test partition; routers train on \texttt{train} and are evaluated once on \texttt{test}. All router results in this paper use this protocol unless stated.
@@ -68,13 +68,14 @@ domain & bm25 & dense & hybrid & best fixed & oracle \\
 \midrule
 FiQA     & 0.2293 & 0.3680 & 0.3827 @ $w{=}0.7$ & \textbf{0.3827} & 0.4271 \\
 NFCorpus & 0.3013 & 0.3183 & 0.3374 @ $w{=}0.5$ & \textbf{0.3374} & 0.3818 \\
+SciFact  & 0.6688 & 0.6570 & 0.7190 @ $w{=}0.5$ & \textbf{0.7190} & 0.7719 \\
 \bottomrule
 \end{tabular}
-\caption{Baselines and oracle under the \emph{all-splits} protocol (train+dev+test merged; comparability with published BEIR numbers). Oracle gaps: +11.6\% relative (FiQA), +13.2\% (NFCorpus). All router results in this paper (Table~\ref{tab:matrix}) use the honest \emph{test-split} protocol instead (gaps +16.9\%/+14.1\%); the phenomenon holds under both.}
+\caption{Baselines and oracle under the \emph{all-splits} protocol (train+dev+test merged; comparability with published BEIR numbers). Oracle gaps: +11.6\% relative (FiQA), +13.2\% (NFCorpus), +7.4\% (SciFact). All router results in this paper (Table~\ref{tab:matrix}) use the honest \emph{test-split} protocol instead (gaps +16.9\%/+14.1\%); the phenomenon holds under both.}
 \label{tab:baselines}
 \end{table}
 
-Head-to-head, no strategy dominates: BM25 beats dense on 31.3\% of NFCorpus queries but only 14.5\% of FiQA queries. The winner \emph{varies} --- the precondition for routing to matter.
+Head-to-head, no strategy dominates: BM25 beats dense on 31.3\% of NFCorpus queries but only 14.5\% of FiQA queries. The winner \emph{varies} --- the precondition for routing to matter. SciFact corroborates on a third domain (all-splits): hybrid again leads (0.7190 vs bm25 0.6688, dense 0.6570) and the oracle reaches 0.7719 --- a +7.4\% relative gap, smaller than on FiQA/NFCorpus, with the same ordering and the same fusion-dominance conclusion.
 
 Under the honest test-split protocol the pattern holds: oracle 0.4338 (FiQA) and 0.3842 (NFCorpus) vs best-uniform 0.3711 and 0.3368 --- \textbf{+16.9\% and +14.1\% relative} (weighted oracle 0.4173 vs 0.3597). Protocol note: Table~\ref{tab:baselines} is all-splits; Table~\ref{tab:matrix} is test-split; the gap holds under both (\S2.2).
 
@@ -245,7 +246,7 @@ The human ordering (dense $>$ hybrid $>$ bm25) exactly preserves the grounding-p
 
 \section{Limitations}
 \begin{enumerate}
-\item \textbf{Scale.} Two datasets and three strategies; RCT-MARS' broader stack may admit routers ours cannot. Our conclusions are conditioned on BEIR-style train/test separation --- which is also the setting most routing evaluations actually use.
+\item \textbf{Scale.} Three datasets and three strategies; RCT-MARS' broader stack may admit routers ours cannot. Our conclusions are conditioned on BEIR-style train/test separation --- which is also the setting most routing evaluations actually use.
 \item \textbf{Human evaluation.} One rater, $n{=}30$ per strategy, overlapping CIs; directional rather than definitive.
 \item \textbf{Feature scope.} Six lexical features and one embedding model; richer features might squeeze past break-even, though the in-sample-vs-transfer gap suggests the bottleneck is distribution shift, not representation.
 \item \textbf{Label quality.} Pseudo-labels and LLM routers each carry their own noise; we mitigated but cannot eliminate it.
