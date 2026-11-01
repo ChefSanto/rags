@@ -147,19 +147,19 @@ Production notes on the LLM router's pipeline fragility (token-budget exhaustion
 \centering\footnotesize
 \begin{tabular}{llcccc}
 \toprule
-\# & router & score & vs uniform & recovery & mechanism \\
+\# & router & score & vs uniform & $\Delta$nDCG & mechanism \\
 \midrule
 --- & best uniform (tuned $w$) & 0.3597 & --- & --- & the bar \\
-v0 & hard classify (lexical) & 0.2651 & $-26.3\%$ & $-181\%$ & alphabetical tie-bias \\
-v1 & score regress (lexical) & 0.3626 & $+0.8\%$ & $+4.9\%$ & level $\neq$ deviation \\
-v2a & score regress (embedding) & 0.3605 & $+0.2\%$ & $+1.4\%$ & same ceiling \\
---- & cross-domain transfer & negative & --- & $-11\sim-25\%$ & signal is local \\
-v3 & pseudo-sentence labels & 0.2603 & $-27.7\%$ & $-181\%$ & lexical-copy bias \\
-v4 & pseudo-question labels & 0.3469 & $-3.6\%$ & $-22\%$ & deviations don't transfer \\
-v5a & soft: regress $w^*$ & 0.2907 & $-19.2\%$ & $-25\%$ & non-convex weight valley \\
-v5b & soft: strength hedge & 0.3607 & $+0.3\%$ & $+0.1\%$ & $\equiv$ RRF \\
-v6h & LLM (hedge allowed) & 0.3599 & $+0.1\%$ & $+0.0\%$ & hedge degeneracy \\
-v6f & LLM (forced choice) & 0.3386 & $-5.9\%$ & $-21\%$ & priors anti-predictive \\
+v0 & hard classify (lexical) & 0.2651 & $-26.3\%$ & $-0.0946$ & alphabetical tie-bias \\
+v1 & score regress (lexical) & 0.3626 & $+0.8\%$ & $+0.0029$ & level $\neq$ deviation \\
+v2a & score regress (embedding) & 0.3605 & $+0.2\%$ & $+0.0008$ & same ceiling \\
+--- & cross-domain transfer & negative & --- & n/a & signal is local \\
+v3 & pseudo-sentence labels & 0.2603 & $-27.7\%$ & $-0.0994$ & lexical-copy bias \\
+v4 & pseudo-question labels & 0.3469 & $-3.6\%$ & $-0.0128$ & deviations don't transfer \\
+v5a & soft: regress $w^*$ & 0.2907 & $-19.2\%$ & $-0.0690$ & non-convex weight valley \\
+v5b & soft: strength hedge & 0.3607 & $+0.3\%$ & $+0.0010$ & $\equiv$ RRF \\
+v6h & LLM (hedge allowed) & 0.3599 & $+0.1\%$ & $+0.0002$ & hedge degeneracy \\
+v6f & LLM (forced choice) & 0.3386 & $-5.9\%$ & $-0.0211$ & priors anti-predictive \\
 \bottomrule
 \end{tabular}
 \caption{All attempts, honest train/test protocol (test split only), weighted nDCG@10 (baseline uniform 0.3597, oracle 0.4173; all-splits baselines in Table~\ref{tab:baselines}). Scores as reported per experiment; per-experiment scores retain their original subsets, hence sub-0.001 wobble; per-domain routed point estimates pool to ${+}0.002$ weighted.}
