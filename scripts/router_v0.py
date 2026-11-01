@@ -99,6 +99,15 @@ def load_split_qrels(dataset_dir: str, split: str) -> dict[str, dict[str, int]]:
     return qrels
 
 
+def _local_run(path_str):
+    """Run artifacts may carry absolute paths from the producing machine
+    (e.g. /kaggle/working/...); fall back to the local committed file."""
+    p = Path(path_str)
+    if not p.exists():
+        p = ROOT / "artifacts" / "runs" / p.name
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
 def collect_dataset(name: str, metric_base: str, k: int, results_dir: str) -> dict:
     """Per-dataset: strategy artifacts, per-query scores, query texts, features."""
     results = [r for r in load_results(results_dir)
@@ -117,7 +126,7 @@ def collect_dataset(name: str, metric_base: str, k: int, results_dir: str) -> di
 
     per_strategy: dict[str, dict[str, float]] = {}
     for strategy, r in sorted(by_strategy.items()):
-        run = json.loads(Path(r["run_artifact"]).read_text(encoding="utf-8"))
+        run = _local_run(r["run_artifact"])
         per_strategy[strategy] = PER_QUERY[metric_base](run, dataset.qrels, k)
 
     n_docs, df = corpus_stats(dataset_dir, name)
