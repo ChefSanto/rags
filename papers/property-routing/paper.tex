@@ -6,6 +6,7 @@
 \graphicspath{{figures/}}
 \usepackage{hyperref}
 \usepackage{url}
+\usepackage{float}
 \setlength{\parskip}{4pt}
 
 \title{Why Per-Query Retrieval Routing Fails to Beat Tuned Fusion:\\A Mechanism-Level Study}
@@ -60,7 +61,7 @@ BM25 ($k_1{=}1.5$, $b{=}0.75$), dense (\texttt{all-MiniLM-L6-v2}), and hybrid (m
 \section{The oracle gap is real}
 Table~\ref{tab:baselines} establishes the phenomenon that motivates routing. On both domains, a per-query oracle --- picking each query's best strategy from the three --- substantially outperforms every fixed strategy.
 
-\begin{table}[h]
+\begin{table}[H]
 \centering\small
 \begin{tabular}{lccccc}
 \toprule
@@ -82,7 +83,7 @@ Under the honest test-split protocol the pattern holds: oracle 0.4338 (FiQA) and
 One observation frames everything that follows: the \textbf{soft oracle exceeds the hard oracle}. Allowing per-query fusion weights $w \in \{0, 0.1, \dots, 1.0\}$ (RRF-fused BM25+dense rankings, weight grid-searched per query) reaches 0.4413/0.3884 --- \emph{above} per-query strategy selection (0.4338/0.3842).\footnote{Per-domain values are unweighted domain means; pooled values weight queries across domains.} Quantified per query (reviewer statistics, artifact): the soft oracle beats strategy selection on only 9.6\% (FiQA) and 14.2\% (NFCorpus) of test queries, and the tuned \emph{constant} weight already captures 50.6\% of the positive hedging mass (the sum, over queries, of per-query nDCG gains of the best fused ranking over the best single strategy). The oracle is, mostly, a constant fusion with small wiggles --- the ceiling is higher than the routing literature's usual number, and we will see it is no more reachable.
 
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{fig_ladder.png}
 \caption{The routing rainbow: every paradigm, one bar. Several point estimates exceed the tuned uniform (dashed) by ${\le}{+}0.003$, but none reliably (Table~\ref{tab:canonical}); none approaches the oracle. Full protocol: honest train/test split; Table~\ref{tab:baselines} gives all-splits baselines.}
@@ -126,7 +127,7 @@ RCT-MARS (\S\ref{sec:related}) resolves the hard-routing paradox by going soft: 
 
 \textbf{v5-heuristic} (weight from predicted strategy strengths, $w = \hat{s}_d / (\hat{s}_d + \hat{s}_b)$): 0.3607 (+0.0005). It never hurts and never helps; it behaves like RRF because it \emph{is} RRF in spirit. Once the uniform weight is tuned, hedging has nothing left to add.
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{fig_valley.png}
 \caption{Per-query fusion-weight sweep recomputed from committed run artifacts (test split; solid = mean nDCG@10, band = interquartile range across queries). FiQA's mean surface is non-convex --- collapse through $w{=}0.3$--$0.4$, jump at $w{=}0.5$ --- and v5-direct's predicted mean weight (0.323, dashed) lands in the shaded valley: the mechanism of its $-25\%$ recovery. NFCorpus's surface is flatter, consistent with its smaller routing losses.}
@@ -144,7 +145,7 @@ Two regimes, both diagnostic:
 Production notes on the LLM router's pipeline fragility (token-budget exhaustion in reasoning models, markdown defeating line parsers, bot-blocking of default HTTP signatures) are relegated to Appendix~\ref{app:fragility}; the scientific finding is the hedging behavior itself.
 
 \subsection{The matrix}\label{sec:matrix}
-\begin{table}[h]
+\begin{table}[H]
 \centering\footnotesize
 \begin{tabular}{llcccc}
 \toprule
@@ -168,7 +169,7 @@ v6f & LLM (forced choice) & 0.3386 & $-5.9\%$ & $-0.0211$ & priors anti-predicti
 \end{table}
 
 
-\begin{table}[h]
+\begin{table}[H]
 \centering\small
 \begin{tabular}{lcccc}
 \toprule
@@ -199,7 +200,7 @@ which gives 45.1\% (FiQA) and 45.5\% (NFCorpus) at our measured win rates ($w = 
 
 \textbf{The decomposition localizes the failure.} Call a query \emph{decisive} when the oracle's preferred strategy beats its \emph{runner-up} by more than 0.05 nDCG (oracle--runner-up margin --- i.e., the oracle \emph{label} is unambiguous); 38.4\%/35.3\% of queries qualify. Note decisiveness is a property of the oracle's preference, not of profitability: a decisively preferred strategy can still fall below the uniform bar. Computing the same ratio-of-sums on the decisive subset gives $p^*_{\mathrm{dec}} = 29.9\%$ (FiQA) / 31.5\% (NFCorpus) --- well below the full-set threshold, because decisive wins are large and decisive losses rare. And here routing \emph{works}: the v1 router's decisive pick accuracy is 47.0\% (FiQA, CI $[41.0, 53.0]$) and 38.6\% (NFCorpus, CI $[29.8, 47.4]$) --- above the decisive threshold on both domains --- yielding decisive-stratum gains of $+0.0353$ and $+0.0385$ nDCG. The arithmetic closes exactly: $0.384 \times 0.0353 + 0.616 \times (-0.0230) = -0.0006$ (FiQA); $0.353 \times 0.0385 + 0.647 \times (-0.0093) = +0.0076$ (NFCorpus). Routing profits are real, and they live in the decisive stratum.
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{fig_breakeven.png}
 \caption{Pick accuracy of the v1 router (blue) against break-even $p^*$ (red), on all test queries and on the decisive subset (oracle--runner-up margin $>0.05$, 35--38\% of queries). Accuracy exceeds the decisive threshold --- routing is profitable on decisive queries --- but the router's predicted margin does not identify them (gate AUC 0.47/0.54, PR-AUC at the decisive base rate), and all full-set realized gains have CIs straddling zero (Section~5).}
@@ -216,7 +217,7 @@ If no router works, why keep asking the question? Because the \emph{fixed} choic
 
 \textbf{Blind human evaluation.} 90 judgments (30 queries $\times$ 3 strategies, shuffled, strategy hidden), graded Correct / Partial / Wrong against the retrieved sources by one rater (Table~\ref{tab:human}).
 
-\begin{table}[h]
+\begin{table}[H]
 \centering\small
 \begin{tabular}{lcccc}
 \toprule
@@ -234,15 +235,15 @@ hybrid & 28 & 2 & 0 & 93.3\% [77.9, 99.2] \\
 The human ordering (dense $>$ hybrid $>$ bm25) exactly preserves the grounding-proxy ordering --- two measurement levels on the same evidence --- directional rather than independent validation --- with one consistent conclusion. Failures concentrate in Partial (missed key points), and 4 of the 5 Partials belong to BM25 --- thin retrieval propagating into incomplete answers, the human-visible form of the routing mechanism. Caveats honestly noted: $n{=}30$ per strategy with overlapping CIs (directional, not powered for superiority); the sample derives from the first 100 queries and is topically clustered.
 
 \section{Related work}\label{sec:related}
-\textbf{The routing paradox.} RCT-MARS (Srivastava et al., \emph{Journal of Intelligent Information Systems} 64(6), 2026, doi:10.1007/s10844-026-01080-5; independent, concurrent) establishes on six benchmarks and five retrieval paradigms that learned hard routers fall below the strongest fixed method despite a large oracle ceiling, and that \emph{soft} routing (learned fusion weights, CASR) recovers +16.4\% of the gap, matching RRF. Where RCT-MARS asks ``what makes routing succeed?'', we ask ``why does every paradigm fail, exactly?'' --- the two papers are complementary. Their $+16.4\%$ recovery is relative to \emph{single-retriever} baselines; once the strongest fixed method is tuned fusion (${\approx}$ RRF), soft routing's RRF-equivalence leaves no headroom --- a single observation that explains both studies' results without contradiction. On our protocol the distinction is sharper: soft routing's direct weight-regression variant fails catastrophically (the weight valley, \S\ref{sec:v5}), while its RRF-equivalent variant has no headroom over tuned fusion. A faithful CASR replication under the BEIR split protocol remains future work. Our negative claims are scoped: they concern the strategies, features, datasets, and protocols we evaluate, and should not be read as impossibility results.
+\textbf{The routing paradox.} RCT-MARS (Srivastava et al., \emph{Journal of Intelligent Information Systems} 64(6), 2026, doi:10.1007/s10844-026-01080-5; independent, concurrent)~\cite{rctmars} establishes on six benchmarks and five retrieval paradigms that learned hard routers fall below the strongest fixed method despite a large oracle ceiling, and that \emph{soft} routing (learned fusion weights, CASR) recovers +16.4\% of the gap, matching RRF. Where RCT-MARS asks ``what makes routing succeed?'', we ask ``why does every paradigm fail, exactly?'' --- the two papers are complementary. Their $+16.4\%$ recovery is relative to \emph{single-retriever} baselines; once the strongest fixed method is tuned fusion (${\approx}$ RRF), soft routing's RRF-equivalence leaves no headroom --- a single observation that explains both studies' results without contradiction. On our protocol the distinction is sharper: soft routing's direct weight-regression variant fails catastrophically (the weight valley, \S\ref{sec:v5}), while its RRF-equivalent variant has no headroom over tuned fusion. A faithful CASR replication under the BEIR split protocol remains future work. Our negative claims are scoped: they concern the strategies, features, datasets, and protocols we evaluate, and should not be read as impossibility results.
 
-\textbf{LLM routing.} RouteLLM (Ong et al., 2024) routes between strong and weak LLMs with a trained classifier, successfully --- but its supervision is drawn from the \emph{same deployment distribution} it serves, the one condition our transfer study shows is necessary. RAGRouter (2025) routes among RAG pipelines with oracle upper bounds reported; our v6 supplies the missing controlled counterpoint: zero-shot LLM routing on BEIR is either degenerate (hedge) or harmful (forced choice).
+\textbf{LLM routing.} RouteLLM (Ong et al., 2024)~\cite{routellm} routes between strong and weak LLMs with a trained classifier, successfully --- but its supervision is drawn from the \emph{same deployment distribution} it serves, the one condition our transfer study shows is necessary. RAGRouter (2025)~\cite{ragrouter} routes among RAG pipelines with oracle upper bounds reported; our v6 supplies the missing controlled counterpoint: zero-shot LLM routing on BEIR is either degenerate (hedge) or harmful (forced choice).
 
-\textbf{Adaptive retrieval.} Mallen et al.\ (2023) decide \emph{whether} to retrieve per query using a classifier trained on same-distribution Wikipedia supervision --- again the workable regime. Our per-query \emph{strategy} routing differs in the action space but shares the lesson: the training distribution is the whole game.
+\textbf{Adaptive retrieval.} Mallen et al.\ (2023)~\cite{mallen} decide \emph{whether} to retrieve per query using a classifier trained on same-distribution Wikipedia supervision --- again the workable regime. Our per-query \emph{strategy} routing differs in the action space but shares the lesson: the training distribution is the whole game.
 
-\textbf{Synthetic query generation.} InPars (Bonifacio et al., 2022) generates LLM queries from documents to \emph{train retrievers} --- and works, because representation learning generalizes where per-query comparative labels (our routing targets) do not. Our v3$\to$v4 contrast is the cautionary complement: the same generation pipeline, used to label \emph{routing decisions}, exposes how fragile the pseudo-task is (a $-181\%$ collapse from lexical-copy bias that a naive reading would call ``BM25 is best'').
+\textbf{Synthetic query generation.} InPars (Bonifacio et al., 2022)~\cite{inpars} generates LLM queries from documents to \emph{train retrievers} --- and works, because representation learning generalizes where per-query comparative labels (our routing targets) do not. Our v3$\to$v4 contrast is the cautionary complement: the same generation pipeline, used to label \emph{routing decisions}, exposes how fragile the pseudo-task is (a $-181\%$ collapse from lexical-copy bias that a naive reading would call ``BM25 is best'').
 
-\textbf{Fusion.} Reciprocal Rank Fusion (Cormack et al., 2009) and its modern descendants establish that simple rank combination is a stubbornly strong baseline; our weight sweep and v5b reproduce this in the routing frame. BEIR (Thakur et al., 2021) documents the cross-domain fragility of dense retrieval that our transfer study quantifies specifically for routing decisions.
+\textbf{Fusion.} Reciprocal Rank Fusion (Cormack et al., 2009)~\cite{rrf} and its modern descendants establish that simple rank combination is a stubbornly strong baseline; our weight sweep and v5b reproduce this in the routing frame. BEIR (Thakur et al., 2021)~\cite{beir} documents the cross-domain fragility of dense retrieval that our transfer study quantifies specifically for routing decisions.
 
 \section{Limitations}
 \begin{enumerate}
@@ -258,6 +259,16 @@ The human ordering (dense $>$ hybrid $>$ bm25) exactly preserves the grounding-p
 We set out to harvest the oracle gap and ended up mapping where its value lies and why it cannot be reached. The oracle's promise is real --- abundant wins (half of all queries), large margins, a soft ceiling even higher than the hard one. But the wins are concentrated in a decisive-query stratum (35--38\% of queries) that the query-side signals we test cannot identify: a router routed there would gain ${\approx}{+}0.036$ nDCG, yet margin-gated routing --- the natural remedy --- yields gains whose confidence intervals all straddle zero (gate AUC 0.47/0.54: selection-within-stratum succeeds; stratum-membership prediction fails). Every router paradigm we tried, from six-feature regression to zero-shot LLM judgment, lands at point estimates $-0.0006$/$+0.0076$ nDCG versus the tuned constant, statistically indistinguishable from it. The mechanisms we documented along the way --- tie-bias collapse, level-vs-deviation, lexical-copy pseudo-labels, the weight valley, hedge degeneracy, the unreachable decisive stratum --- are individually useful warnings and collectively a map of where not to look.
 
 The uncomfortable recommendation survives every robustness check we could throw at it: \textbf{sweep the fusion weight once, then stop routing.} And the oracle gap, henceforth, should be read for what it is --- an upper bound on hindsight, not a forecast for routing.
+
+\begin{thebibliography}{99}
+\bibitem{rctmars} S.~Srivastava et al. RCT-MARS: when per-query retrieval routing fails, and what it takes to succeed. \emph{Journal of Intelligent Information Systems} 64(6), 2026. doi:10.1007/s10844-026-01080-5.
+\bibitem{routellm} I.~Ong, A.~Almahairi, V.~Muennighoff, et al. RouteLLM: Learning to route LLMs with preference data. 2024. arXiv:2406.18665.
+\bibitem{ragrouter} RAGRouter: A multi-query transformational RAG router. 2025. arXiv:2505.23052.
+\bibitem{mallen} A.~Mallen, A.~Asai, V.~Zhong, R.~Das, D.~Khashabi, H.~Hajishirzi. When not to trust language models: Investigating effectiveness of parametric and non-parametric memories. 2023. arXiv:2212.10551.
+\bibitem{inpars} L.~Bonifacio, H.~Abonizio, M.~Fadaee, R.~Lotufo. InPars: Data augmentation for information retrieval using large language models. 2022. arXiv:2202.05144.
+\bibitem{rrf} G.~V.~Cormack, C.~L.~A.~Clarke, S.~Buettcher. Reciprocal rank fusion outperforms Condorcet and individual rank learning methods. \emph{Proc. SIGIR}, 2009.
+\bibitem{beir} N.~Thakur, N.~Reimers, A.~R\"uckl\'e, A.~Srivastava, I.~Gurevych. BEIR: A heterogeneous benchmark for zero-shot evaluation of information retrieval models. 2021. arXiv:2104.08663.
+\end{thebibliography}
 
 \appendix
 \section{Artifact guide}
