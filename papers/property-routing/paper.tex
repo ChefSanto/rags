@@ -59,7 +59,7 @@ Primary metric: nDCG@10 (judged queries, rel~$\geq$~1 threshold, graded gains), 
 BM25 ($k_1{=}1.5$, $b{=}0.75$), dense (\texttt{all-MiniLM-L6-v2}), and hybrid (min--max fusion, \texttt{dense\_weight} swept in \S\ref{sec:matrix}). The hybrid weight sweep --- a foreshadowing of this paper's conclusion --- found \texttt{dense\_weight}${=}0.7$ optimal on FiQA (nDCG@10 0.3827, beating dense 0.3680 and bm25 0.2293) and 0.5 optimal on NFCorpus (0.3414 vs 0.3186/0.3185).
 
 \section{The oracle gap is real}
-Table~\ref{tab:baselines} establishes the phenomenon that motivates routing. On both domains, a per-query oracle --- picking each query's best strategy from the three --- substantially outperforms every fixed strategy.
+Table~\ref{tab:baselines} establishes the phenomenon that motivates routing. On all three domains, a per-query oracle --- picking each query's best strategy from the three --- substantially outperforms every fixed strategy.
 
 \begin{table}[H]
 \centering\small
