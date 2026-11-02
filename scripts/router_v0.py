@@ -47,22 +47,35 @@ FEATURE_NAMES = ["n_terms", "n_unique", "coverage", "avg_idf", "max_idf", "stopw
 
 
 def corpus_stats(dataset_dir: str, dataset_name: str) -> tuple[int, Counter]:
-    """Document frequencies over the corpus; cached under artifacts/corpus-stats/."""
+    """Document frequencies over title-plus-body text, matching the BEIR loader."""
     cache_dir = ROOT / "artifacts" / "corpus-stats"
     cache_dir.mkdir(parents=True, exist_ok=True)
-    cache = cache_dir / f"{dataset_name}.json"
+
+    # Versioned filename prevents reuse of older body-only statistics.
+    cache = cache_dir / f"{dataset_name}-title-body-v2.json"
     if cache.exists():
         data = json.loads(cache.read_text(encoding="utf-8"))
         return data["n_docs"], Counter(data["df"])
 
     df: Counter = Counter()
     n_docs = 0
+
     with open(Path(dataset_dir) / "corpus.jsonl", encoding="utf-8") as f:
         for line in f:
             doc = json.loads(line)
-            df.update(set(tokenize(doc["text"])))
+
+            # Match core/datasets/beir.py exactly.
+            text = doc["text"]
+            if doc.get("title"):
+                text = f"{doc['title']}. {text}"
+
+            df.update(set(tokenize(text.strip())))
             n_docs += 1
-    cache.write_text(json.dumps({"n_docs": n_docs, "df": dict(df)}), encoding="utf-8")
+
+    cache.write_text(
+        json.dumps({"n_docs": n_docs, "df": dict(df)}),
+        encoding="utf-8"
+    )
     return n_docs, df
 
 
