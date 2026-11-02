@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI Lab</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
 :root{
@@ -102,8 +103,16 @@ a{color:var(--accent)}
 .copybtn{background:none;border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:2px 8px;font-size:11px;margin-top:6px}
 .copybtn:hover{color:var(--fg);border-color:var(--dim)}
 .composer{display:flex;gap:10px;padding:14px 0 6px;border-top:1px solid var(--line)}
-.empty{color:var(--dim);text-align:center;margin-top:16vh;font-size:15px;line-height:1.9}
-.empty .big{font-size:40px;margin-bottom:8px}
+.empty{text-align:center;margin-top:13vh}
+.w-hello{font-family:'Sora',sans-serif;font-size:48px;font-weight:800;letter-spacing:-.5px;min-height:60px;
+  background:linear-gradient(92deg,#5b9dff 0%,#7c5bff 55%,#c56bff 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.w-sub{font-family:'Sora',sans-serif;font-size:18px;color:var(--dim);min-height:28px;margin-top:8px}
+.caret{display:inline-block;width:3px;height:.95em;background:var(--accent);margin-left:4px;vertical-align:-3px;animation:blink .8s step-end infinite}
+@keyframes blink{50%{opacity:0}}
+.w-chips{margin-top:30px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.chip{background:var(--panel);border:1px solid var(--line);color:var(--dim);border-radius:999px;
+  padding:9px 18px;font-size:13px;transition:all .15s}
+.chip:hover{color:var(--fg);border-color:var(--accent);transform:translateY(-2px);box-shadow:0 4px 14px rgba(91,157,255,.15)}
 
 @media(max-width:860px){
   aside{display:none}
@@ -142,7 +151,7 @@ a{color:var(--accent)}
 
   <div class="content active" id="view-chat">
     <div class="chatcol">
-      <div class="msgs" id="msgs"><div class="empty"><div class="big">💬</div>Ask about your documents or the corpus.<br>Each conversation keeps its own context.</div></div>
+      <div class="msgs" id="msgs"></div>
       <div class="composer">
         <input type="text" id="chatIn" placeholder="Message AI Lab…" onkeydown="if(event.key==='Enter')send()">
         <button class="btn" onclick="send()">Send</button>
@@ -211,6 +220,7 @@ function enter() {
   gate.style.display = "none";
   app.classList.add("on");
   loadChats();
+  renderWelcome();
 }
 async function boot() {
   // validate stored key; re-gate if invalid
@@ -253,6 +263,38 @@ function showView(v) {
 document.querySelectorAll(".navitem").forEach(b => b.onclick = () => showView(b.dataset.view));
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
+/* ---------- welcome ---------- */
+let typeTimers = [];
+function typeInto(el, text, speed) {
+  return new Promise(res => {
+    let i = 0;
+    (function step() {
+      i++;
+      el.innerHTML = esc(text.slice(0, i)) + (i < text.length ? '<span class="caret"></span>' : '');
+      if (i < text.length) typeTimers.push(setTimeout(step, speed));
+      else res();
+    })();
+  });
+}
+async function renderWelcome() {
+  typeTimers.forEach(clearTimeout); typeTimers = [];
+  const m = document.getElementById("msgs");
+  m.innerHTML = '<div class="empty"><div class="w-hello" id="wHello"></div>' +
+    '<div class="w-sub" id="wSub1"></div><div class="w-sub" id="wSub2"></div>' +
+    '<div class="w-chips" id="wChips" style="visibility:hidden">' +
+    '<button class="chip" onclick="askChip(this.textContent)">What is A2H2?</button>' +
+    '<button class="chip" onclick="askChip(this.textContent)">Summarize the A2H2 contributions</button>' +
+    '<button class="chip" onclick="askChip(this.textContent)">What is a diversified portfolio?</button></div></div>';
+  await typeInto(document.getElementById("wHello"), "Welcome, ChefSanto.", 60);
+  await typeInto(document.getElementById("wSub1"), "Ask about your documents or the corpus.", 20);
+  await typeInto(document.getElementById("wSub2"), "Each conversation keeps its own context.", 20);
+  document.getElementById("wChips").style.visibility = "visible";
+}
+function askChip(text) {
+  document.getElementById("chatIn").value = text;
+  send();
+}
+
 /* ---------- chats ---------- */
 let currentChat = null, busy = false;
 async function loadChats() {
@@ -287,7 +329,7 @@ async function loadChats() {
 }
 function newChat() {
   currentChat = null;
-  document.getElementById("msgs").innerHTML = '<div class="empty"><div class="big">💬</div>Ask about your documents or the corpus.<br>Each conversation keeps its own context.</div>';
+  renderWelcome();
   document.querySelectorAll(".chatitem").forEach(x => x.classList.remove("active"));
   showView("chat");
   document.getElementById("chatIn").focus();
