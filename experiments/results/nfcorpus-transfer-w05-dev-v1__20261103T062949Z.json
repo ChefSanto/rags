@@ -1,0 +1,96 @@
+{
+  "experiment_id": "nfcorpus-transfer-w05-dev-v1__20261103T062949Z",
+  "name": "nfcorpus-transfer-w05-dev-v1",
+  "description": "Phase 5 / H4: hybrid BM25+dense fusion on NFCorpus. Second domain for routing comparison.\n",
+  "dataset": "nfcorpus",
+  "dataset_version": "1.0",
+  "retriever": "hybrid",
+  "retrieval_params": {
+    "dense_weight": 0.5,
+    "bm25": {
+      "k1": 1.5,
+      "b": 0.75
+    },
+    "dense": {
+      "embedding": "sentence-transformers/all-MiniLM-L6-v2"
+    }
+  },
+  "seed": 42,
+  "num_documents": 3633,
+  "num_queries": 3237,
+  "metrics": {
+    "recall_at_5": 0.6451,
+    "recall_at_10": 0.6944,
+    "precision_at_10": 0.2522,
+    "mrr_at_10": 0.5216,
+    "ndcg_at_10": 0.3178
+  },
+  "run_artifact": "/kaggle/working/rags/artifacts/runs/nfcorpus-transfer-w05-dev-v1__20261103T062949Z.json",
+  "config": {
+    "name": "nfcorpus-transfer-w05-dev-v1",
+    "description": "Phase 5 / H4: hybrid BM25+dense fusion on NFCorpus. Second domain for routing comparison.\n",
+    "dataset": {
+      "name": "nfcorpus",
+      "version": "1.0",
+      "path": "datasets/downloads/nfcorpus",
+      "format": "beir"
+    },
+    "retrieval": {
+      "method": "hybrid",
+      "top_k": 10,
+      "params": {
+        "dense_weight": 0.5,
+        "bm25": {
+          "k1": 1.5,
+          "b": 0.75
+        },
+        "dense": {
+          "embedding": "sentence-transformers/all-MiniLM-L6-v2"
+        }
+      }
+    },
+    "generator": null,
+    "models": {
+      "embedding": "sentence-transformers/all-MiniLM-L6-v2",
+      "reranker": null
+    },
+    "parameters": {
+      "seed": 42
+    },
+    "evaluation": {
+      "metrics": [
+        "recall_at_5",
+        "recall_at_10",
+        "precision_at_10",
+        "mrr_at_10",
+        "ndcg_at_10"
+      ],
+      "k_values": [
+        5,
+        10
+      ]
+    },
+    "schema_version": "1.0"
+  },
+  "metadata": {
+    "git_commit": "a8dac947fd2196da8713de81532675bfda78a999",
+    "git_dirty": true,
+    "python_version": "3.13.15",
+    "platform": "Linux-6.18.55+-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "processor": "x86_64",
+    "packages": {
+      "ai-lab": null,
+      "numpy": "2.1.3",
+      "pyyaml": "6.0.3",
+      "scipy": "1.16.3",
+      "pandas": "2.3.3",
+      "scikit-learn": "1.6.1",
+      "torch": "2.11.0+cu128",
+      "sentence-transformers": "5.7.0",
+      "pymupdf": null
+    },
+    "seed": 42,
+    "timestamp_utc": "2026-11-03T06:29:49+00:00"
+  }
+}
