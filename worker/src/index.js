@@ -113,7 +113,8 @@ async function retrieve(env, question, topK) {
     env.VECTORIZE_WEB.query(vector, { topK: fetchN, returnMetadata: "all" })
       .catch(() => ({ matches: [] })),
   ]);
-  let hits = [...(fiqaRes.matches || []), ...(persRes.matches || []), ...(webRes.matches || [])]
+  const tag = (m, srcName) => (m.matches || []).map((x) => ({ ...x, __src: srcName }));
+  let hits = [...tag(fiqaRes, "corpus"), ...tag(persRes, "personal"), ...tag(webRes, "web")]
     .sort((a, b) => b.score - a.score)
     .slice(0, candidates);
 
@@ -135,7 +136,17 @@ async function retrieve(env, question, topK) {
     }
   }
 
-  hits = hits.slice(0, topK);
+  // per-source quota: max 2 chunks per folder so small indexes (web/personal) are always heard
+  const counts = {};
+  const picked = [];
+  for (const h of hits) {
+    const s = h.__src || "corpus";
+    if ((counts[s] || 0) >= 2) continue;
+    counts[s] = (counts[s] || 0) + 1;
+    picked.push(h);
+    if (picked.length >= topK) break;
+  }
+  hits = picked;
   const budget = parseInt(env.MAX_CONTEXT_CHARS || "3000", 10);
   let context = "";
   let used = 0;
