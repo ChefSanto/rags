@@ -155,6 +155,7 @@ a{color:var(--accent)}
       <div class="msgs" id="msgs"></div>
       <div class="composer">
         <input type="text" id="chatIn" placeholder="Message AI Lab…" onkeydown="if(event.key==='Enter')send()">
+        <button class="btn ghost" id="convoBtn" onclick="toggleConvo()" title="hands-free conversation mode">🗣️</button>
         <button class="btn ghost" id="micBtn" onclick="toggleMic()" title="speak your question">🎙️</button>
         <button class="btn" onclick="send()">Send</button>
       </div>
@@ -311,7 +312,7 @@ function askChip(text) {
 }
 
 /* ---------- voice ---------- */
-function speakText(text) {
+function speakText(text, onEnd) {
   if (!("speechSynthesis" in window)) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(String(text).slice(0, 800));
@@ -320,6 +321,7 @@ function speakText(text) {
   if (v) u.voice = v;
   u.rate = parseFloat(localStorage.getItem("voiceRate") || "1");
   u.pitch = parseFloat(localStorage.getItem("voicePitch") || "1");
+  if (onEnd) u.onend = onEnd;
   speechSynthesis.speak(u);
 }
 function speakBubble(btn) {
@@ -358,24 +360,64 @@ function loadVoiceSettings() {
   bind("vLang", "onchange", function (e) { localStorage.setItem("recogLang", e.target.value); });
   bind("vAuto", "onchange", function (e) { localStorage.setItem("voiceAutoSend", e.target.checked ? "1" : "0"); });
 })();
-let recog = null, listening = false;
-function toggleMic() {
-  const btn = document.getElementById("micBtn");
+let recog = null, listening = false, convoMode = false, emptyStreak = 0, gotResult = false;
+function startRecognition() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (listening && recog) { recog.stop(); return; }
-  if (!SR) { btn.textContent = "n/a"; setTimeout(function () { btn.textContent = "🎙️"; }, 1500); return; }
+  const btn = document.getElementById("micBtn");
+  if (!SR) return;
   recog = new SR();
   recog.lang = localStorage.getItem("recogLang") || "en-US";
   recog.interimResults = false;
-  recog.onresult = function (e) {
-    document.getElementById("chatIn").value = e.results[0][0].transcript;
-    if (localStorage.getItem("voiceAutoSend") === "1") send();
+  gotResult = false;
+  recog.onstart = function () {
+    if (window.speechSynthesis) speechSynthesis.cancel();  // barge-in: your voice interrupts the reply
   };
-  recog.onend = function () { listening = false; btn.textContent = "🎙️"; };
-  recog.onerror = function () { listening = false; btn.textContent = "🎙️"; };
+  recog.onresult = function (e) {
+    gotResult = true;
+    emptyStreak = 0;
+    document.getElementById("chatIn").value = e.results[0][0].transcript;
+    if (convoMode || localStorage.getItem("voiceAutoSend") === "1") send();
+  };
+  recog.onend = function () {
+    listening = false;
+    btn.textContent = "🎙️";
+    if (convoMode && !gotResult) {
+      emptyStreak++;
+      if (emptyStreak >= 3) exitConvo();          // three silences in a row -> pause the loop
+      else startRecognition();
+    }
+  };
+  recog.onerror = function () {
+    listening = false;
+    btn.textContent = "🎙️";
+    if (convoMode) setTimeout(function () { if (convoMode) startRecognition(); }, 800);
+  };
   listening = true;
   btn.textContent = "⏺ listening…";
   recog.start();
+}
+function toggleMic() {
+  if (listening && recog) { recog.stop(); return; }
+  startRecognition();
+}
+function toggleConvo() {
+  const btn = document.getElementById("convoBtn");
+  if (convoMode) { exitConvo(); return; }
+  convoMode = true;
+  emptyStreak = 0;
+  localStorage.setItem("voiceSpeak", "1");
+  document.getElementById("vSpeak").checked = true;
+  btn.style.borderColor = "var(--accent)";
+  btn.style.color = "var(--fg)";
+  startRecognition();
+}
+function exitConvo() {
+  convoMode = false;
+  const btn = document.getElementById("convoBtn");
+  btn.style.borderColor = "";
+  btn.style.color = "";
+  if (recog && listening) recog.stop();
+  if (window.speechSynthesis) speechSynthesis.cancel();
 }
 
 /* ---------- chats ---------- */
@@ -458,7 +500,9 @@ async function send() {
   try {
     const j = await api("/chat", { method: "POST", body: JSON.stringify({ chat_id: currentChat, message }) });
     currentChat = j.chat_id;
-    if (localStorage.getItem("voiceSpeak") !== "0") speakText(j.answer);
+    if (localStorage.getItem("voiceSpeak") !== "0") speakText(j.answer, function () {
+      if (convoMode) startRecognition();
+    });
     thinking.querySelector(".bubble").textContent = j.answer;
     let srcs = "";
     for (const s of j.sources) {
@@ -469,6 +513,7 @@ async function send() {
     loadChats();
   } catch (e) {
     thinking.querySelector(".bubble").textContent = "Error: " + e.message;
+    if (convoMode) setTimeout(function () { if (convoMode) startRecognition(); }, 600);
   } finally { busy = false; input.focus(); }
 }
 
