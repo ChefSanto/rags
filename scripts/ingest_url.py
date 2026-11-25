@@ -37,6 +37,9 @@ def fetch_text(url: str) -> str:
             "could not fetch the page (blocked, requires JS, or network issue).\n"
             "fallback: open the page, save as PDF, use the dashboard Upload docs."
         )
+    low = downloaded.lstrip().lower()
+    if "<html" not in low[:500] and not low.startswith("<"):
+        return downloaded.strip()          # plain text / markdown (e.g. raw.githubusercontent)
     text = trafilatura.extract(downloaded, include_comments=False, include_tables=True)
     if not text or len(text.strip()) < 200:
         raise SystemExit("page fetched but no readable article text found (likely a JS-only app).")
