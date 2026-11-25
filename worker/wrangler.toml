@@ -24,7 +24,7 @@ MAX_CONTEXT_CHARS = "8000"
 MAX_TOKENS = "300"
 EXTRACT_MAX_TOKENS = "500"
 MODEL_PROVIDER = "groq"
-MODEL_NAME = "openai/gpt-oss-120b"
+MODEL_NAME = "openai/gpt-oss-20b"
 # Reranker: retrieve RERANK_CANDIDATES, re-score with RERANK_MODEL, keep TOP_K.
 RERANK = "true"
 RERANK_MODEL = "@cf/baai/bge-reranker-base"

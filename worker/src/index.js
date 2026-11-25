@@ -23,7 +23,9 @@ const SYSTEM = {
     "You are a careful assistant that answers only from the provided Context. " +
     "If the context is insufficient, say you don't know. " +
     "Use the Conversation history only to resolve follow-up references " +
-    "(pronouns, 'the second method'); factual claims must come from the Context.",
+    "(pronouns, 'the second method'); factual claims must come from the Context. " +
+    "If a term in the question looks garbled (digits where a name is expected), " +
+    "infer the intended term from the Context before answering.",
 };
 
 const EXTRACT_SYSTEM = {
@@ -159,7 +161,7 @@ async function generate(env, messages, maxTokensOverride) {
     const r = await fetch(base + "/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
-      body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0 }),
+      body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0, reasoning_effort: "low" }),
     });
     const j = await r.json();
     if (!r.ok) return `Error from ${provider}: ` + JSON.stringify(j).slice(0, 200);
@@ -399,10 +401,10 @@ async function handleStt(request, env) {
   const ext = ct.includes("mp4") ? "m4a" : ct.includes("mpeg") ? "mp3" : ct.includes("ogg") ? "ogg" : ct.includes("wav") ? "wav" : "webm";
   const form = new FormData();
   form.append("file", new Blob([audio], { type: ct }), "audio." + ext);
-  form.append("model", "whisper-large-v3-turbo");
+  form.append("model", env.STT_MODEL || "whisper-large-v3");
   form.append("temperature", "0");
   if (env.STT_LANGUAGE) form.append("language", env.STT_LANGUAGE);
-  const sttPrompt = env.STT_PROMPT || "A2H2 multimodal sentiment analysis model, retrieval augmented generation, FiQA finance corpus.";
+  const sttPrompt = env.STT_PROMPT || "A2H2 (A-two-H-two), multimodal sentiment analysis model, retrieval augmented generation, FiQA finance corpus.";
   if (sttPrompt) form.append("prompt", sttPrompt);
   const r = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
     method: "POST",
