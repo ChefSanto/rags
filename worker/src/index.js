@@ -15,7 +15,7 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type, X-Ingest-Key",
 };
 
-const PROTECTED = new Set(["/query", "/chat", "/chats", "/chat-meta", "/ingest-text", "/documents", "/logs", "/extract"]);
+const PROTECTED = new Set(["/query", "/chat", "/chats", "/chat-meta", "/ingest-text", "/documents", "/logs", "/extract", "/ocr", "/stt", "/speak"]);
 
 const SYSTEM = {
   role: "system",
@@ -69,6 +69,12 @@ export default {
         resp = await handleIngest(request, env);
       } else if (request.method === "POST" && url.pathname === "/extract") {
         resp = await handleExtract(request, env);
+      } else if (request.method === "POST" && url.pathname === "/ocr") {
+        resp = await handleOcr(request, env);
+      } else if (request.method === "POST" && url.pathname === "/stt") {
+        resp = await handleStt(request, env);
+      } else if (request.method === "POST" && url.pathname === "/speak") {
+        resp = await handleSpeak(request, env);
       } else if (url.pathname === "/logs") {
         resp = await handleLogs(url, env);
       } else if (url.pathname === "/health") {
@@ -357,6 +363,79 @@ async function handleExtract(request, env) {
     fields: out,
     elapsed_ms: Date.now() - t0,
   });
+}
+
+async function handleOcr(request, env) {
+  const body = await request.json().catch(() => null);
+  const text = ((body && body.text) || "").slice(0, 30000);
+  const fields = body && body.fields;
+  if (!text.trim() || !Array.isArray(fields) || fields.length === 0 || fields.length > 30) {
+    return Response.json({ error: "body must be {text, fields: [{name, description}, ...]}" }, { status: 400 });
+  }
+  const names = fields.map((f) => String(f.name || "").trim()).filter(Boolean);
+  if (!names.length) return Response.json({ error: "fields need names" }, { status: 400 });
+  const spec = fields.map((f) => "- " + f.name + (f.description ? ": " + f.description : "")).join("\n");
+  const user = "Fields to extract:\n" + spec + '\n\nDocument:\n"""\n' + text + '\n"""\n\nJSON:';
+  const raw = await generate(env, [EXTRACT_SYSTEM, { role: "user", content: user }],
+    parseInt(env.EXTRACT_MAX_TOKENS || "500", 10));
+  const parsed = extractJson(raw);
+  if (!parsed) {
+    return Response.json({ error: "model did not return valid JSON", raw: raw.slice(0, 500) }, { status: 422 });
+  }
+  const out = {};
+  for (const n of names) out[n] = parsed[n] !== undefined ? parsed[n] : null;
+  return Response.json({ fields: out, elapsed_ms: 0 });
+}
+
+async function handleStt(request, env) {
+  if (!env.GROQ_API_KEY) {
+    return Response.json({ error: "GROQ_API_KEY secret not set" }, { status: 500 });
+  }
+  const ct = (request.headers.get("content-type") || "audio/webm").split(";")[0];
+  const audio = await request.arrayBuffer();
+  if (!audio.byteLength || audio.byteLength < 500) {
+    return Response.json({ error: "audio payload too small" }, { status: 400 });
+  }
+  const ext = ct.includes("mp4") ? "m4a" : ct.includes("mpeg") ? "mp3" : ct.includes("ogg") ? "ogg" : ct.includes("wav") ? "wav" : "webm";
+  const form = new FormData();
+  form.append("file", new Blob([audio], { type: ct }), "audio." + ext);
+  form.append("model", "whisper-large-v3-turbo");
+  const r = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + env.GROQ_API_KEY, "User-Agent": "curl/8.5.0" },
+    body: form,
+  });
+  const j = await r.json();
+  if (!r.ok) {
+    return Response.json({ error: "groq stt: " + JSON.stringify(j).slice(0, 300) }, { status: 502 });
+  }
+  return Response.json({ text: (j.text || "").trim() });
+}
+
+async function handleSpeak(request, env) {
+  const body = await request.json().catch(() => null);
+  const text = ((body && body.text) || "").slice(0, 2000);
+  const voice = ((body && body.voice) || "troy").slice(0, 30);
+  if (!text.trim()) return Response.json({ error: "text required" }, { status: 400 });
+  if (!env.GROQ_API_KEY) return Response.json({ error: "GROQ_API_KEY secret not set" }, { status: 500 });
+  const r = await fetch("https://api.groq.com/openai/v1/audio/speech", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + env.GROQ_API_KEY,
+      "Content-Type": "application/json",
+      "User-Agent": "curl/8.5.0",
+    },
+    body: JSON.stringify({
+      model: "canopylabs/orpheus-v1-english",
+      voice: voice,
+      input: text,
+      response_format: "wav",
+    }),
+  });
+  if (!r.ok) {
+    return Response.json({ error: "groq tts: " + (await r.text()).slice(0, 200) }, { status: 502 });
+  }
+  return new Response(r.body, { headers: { "Content-Type": "audio/wav" } });
 }
 
 async function handleLogs(url, env) {

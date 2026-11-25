@@ -312,18 +312,51 @@ function askChip(text) {
 }
 
 /* ---------- voice ---------- */
-function speakText(text, onEnd) {
-  if (!("speechSynthesis" in window)) return;
-  speechSynthesis.cancel();
+let serverAudio = null;
+function stopServerAudio() {
+  if (serverAudio) { try { serverAudio.pause(); } catch (e) {} serverAudio = null; }
+  window.__speaking = false;
+  window.__speakingServer = false;
+}
+function legacySpeak(text, done) {
+  if (!("speechSynthesis" in window)) { done(); return; }
   const u = new SpeechSynthesisUtterance(String(text).slice(0, 800));
   const name = localStorage.getItem("voiceName");
   const v = speechSynthesis.getVoices().find(function (x) { return x.name === name; });
   if (v) u.voice = v;
   u.rate = parseFloat(localStorage.getItem("voiceRate") || "1");
   u.pitch = parseFloat(localStorage.getItem("voicePitch") || "1");
-  if (onEnd) u.onend = onEnd;
+  u.onend = done;
   speechSynthesis.speak(u);
 }
+async function speakText(text, onEnd) {
+  window.__speaking = true;
+  window.__speakingServer = true;
+  const done = function () {
+    window.__speaking = false;
+    window.__speakingServer = false;
+    if (onEnd) onEnd();
+  };
+  try {
+    const r = await fetch(WORKER + "/speak", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Ingest-Key": key() },
+      body: JSON.stringify({ text: String(text).slice(0, 1800) }),
+    });
+    if (!r.ok) throw new Error("tts " + r.status);
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = new Audio(url);
+    serverAudio = a;
+    a.onended = function () { URL.revokeObjectURL(url); serverAudio = null; done(); };
+    a.onerror = function () { URL.revokeObjectURL(url); serverAudio = null; legacySpeak(text, done); };
+    await a.play();
+  } catch (e) {
+    window.__speakingServer = false;
+    legacySpeak(text, done);
+  }
+}
+
 function speakBubble(btn) {
   speakText(btn.parentElement.querySelector(".bubble").textContent);
 }
@@ -360,64 +393,120 @@ function loadVoiceSettings() {
   bind("vLang", "onchange", function (e) { localStorage.setItem("recogLang", e.target.value); });
   bind("vAuto", "onchange", function (e) { localStorage.setItem("voiceAutoSend", e.target.checked ? "1" : "0"); });
 })();
-let recog = null, listening = false, convoMode = false, emptyStreak = 0, gotResult = false;
-function startRecognition() {
+let listening = false, convoMode = false, emptyStreak = 0;
+let mediaRecorder = null, audioStream = null, silenceTimer = null, maxTimer = null;
+
+async function startRecognition() {
+  const btn = document.getElementById("micBtn");
+  if (!navigator.mediaDevices || !window.MediaRecorder) { legacySR(); return; }
+  let actx = null;
+  try {
+    audioStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+  } catch (e) { btn.textContent = "🎙️"; return; }
+  const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus"
+             : MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "";
+  mediaRecorder = new MediaRecorder(audioStream, mime ? { mimeType: mime } : undefined);
+  const chunks = [];
+  mediaRecorder.ondataavailable = function (e) { if (e.data.size) chunks.push(e.data); };
+  mediaRecorder.onstop = async function () {
+    clearInterval(silenceTimer); clearTimeout(maxTimer);
+    audioStream.getTracks().forEach(function (t) { t.stop(); });
+    if (actx) actx.close().catch(function () {});
+    listening = false; btn.textContent = "🎙️";
+    const blob = new Blob(chunks, { type: mediaRecorder.mimeType || "audio/webm" });
+    if (blob.size < 800) { pauseOrStop(); return; }
+    try {
+      const r = await fetch(WORKER + "/stt", {
+        method: "POST",
+        headers: { "Content-Type": blob.type, "X-Ingest-Key": key() },
+        body: blob,
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || ("HTTP " + r.status));
+      const text = (j.text || "").trim();
+      if (!text) { pauseOrStop(); return; }
+      emptyStreak = 0;
+      document.getElementById("chatIn").value = text;
+      if (convoMode || localStorage.getItem("voiceAutoSend") === "1") send();
+    } catch (e) {
+      if (convoMode) setTimeout(function () { if (convoMode) startRecognition(); }, 1000);
+    }
+  };
+  mediaRecorder.start(250);
+  listening = true;
+  btn.textContent = "⏺ listening…";
+  try {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    const an = actx.createAnalyser(); an.fftSize = 512;
+    actx.createMediaStreamSource(audioStream).connect(an);
+    const buf = new Uint8Array(an.fftSize);
+    let quiet = 0, elapsed = 0;
+    silenceTimer = setInterval(function () {
+      elapsed++;
+      an.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) { const dd = buf[i] - 128; sum += dd * dd; }
+      const level = Math.sqrt(sum / buf.length);
+      if (window.__speaking && level > 26 && mediaRecorder.state === "recording") {
+        stopServerAudio();
+        if (window.speechSynthesis) speechSynthesis.cancel();
+      }
+      if (elapsed < 7) return;
+      if (level < 4) {
+        if (++quiet >= 15 && mediaRecorder.state === "recording") mediaRecorder.stop();
+      } else quiet = 0;
+    }, 125);
+    maxTimer = setTimeout(function () { if (mediaRecorder.state === "recording") mediaRecorder.stop(); }, 20000);
+  } catch (e) {
+    maxTimer = setTimeout(function () { if (mediaRecorder.state === "recording") mediaRecorder.stop(); }, 8000);
+  }
+}
+function pauseOrStop() {
+  if (!convoMode) return;
+  emptyStreak++;
+  if (emptyStreak >= 3) exitConvo();
+  else setTimeout(function () { if (convoMode) startRecognition(); }, 300);
+}
+function toggleMic() {
+  if (listening && mediaRecorder && mediaRecorder.state === "recording") { mediaRecorder.stop(); return; }
+  startRecognition();
+}
+function toggleConvo() {
+  if (convoMode) { exitConvo(); return; }
+  convoMode = true; emptyStreak = 0; startRecognition();
+}
+function exitConvo() {
+  convoMode = false;
+  if (document.getElementById("convoBtn")) {
+    const btn = document.getElementById("convoBtn");
+    btn.style.borderColor = ""; btn.style.color = "";
+  }
+  if (document.getElementById("vConvo")) document.getElementById("vConvo").checked = false;
+  if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+  stopServerAudio();
+  if (window.speechSynthesis) speechSynthesis.cancel();
+}
+function legacySR() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   const btn = document.getElementById("micBtn");
-  if (!SR) return;
-  recog = new SR();
+  if (!SR) { btn.textContent = "n/a"; setTimeout(function () { btn.textContent = "🎙️"; }, 1500); return; }
+  const recog = new SR();
   recog.lang = localStorage.getItem("recogLang") || "en-US";
   recog.interimResults = false;
-  gotResult = false;
-  recog.onstart = function () {
-    if (window.speechSynthesis) speechSynthesis.cancel();  // barge-in: your voice interrupts the reply
-  };
   recog.onresult = function (e) {
-    gotResult = true;
-    emptyStreak = 0;
     document.getElementById("chatIn").value = e.results[0][0].transcript;
     if (convoMode || localStorage.getItem("voiceAutoSend") === "1") send();
   };
   recog.onend = function () {
-    listening = false;
-    btn.textContent = "🎙️";
-    if (convoMode && !gotResult) {
-      emptyStreak++;
-      if (emptyStreak >= 3) exitConvo();          // three silences in a row -> pause the loop
-      else startRecognition();
-    }
+    listening = false; btn.textContent = "🎙️";
+    if (convoMode) setTimeout(function () { if (convoMode) startRecognition(); }, 300);
   };
-  recog.onerror = function () {
-    listening = false;
-    btn.textContent = "🎙️";
-    if (convoMode) setTimeout(function () { if (convoMode) startRecognition(); }, 800);
-  };
+  recog.onerror = recog.onend;
   listening = true;
   btn.textContent = "⏺ listening…";
   recog.start();
-}
-function toggleMic() {
-  if (listening && recog) { recog.stop(); return; }
-  startRecognition();
-}
-function toggleConvo() {
-  const btn = document.getElementById("convoBtn");
-  if (convoMode) { exitConvo(); return; }
-  convoMode = true;
-  emptyStreak = 0;
-  localStorage.setItem("voiceSpeak", "1");
-  document.getElementById("vSpeak").checked = true;
-  btn.style.borderColor = "var(--accent)";
-  btn.style.color = "var(--fg)";
-  startRecognition();
-}
-function exitConvo() {
-  convoMode = false;
-  const btn = document.getElementById("convoBtn");
-  btn.style.borderColor = "";
-  btn.style.color = "";
-  if (recog && listening) recog.stop();
-  if (window.speechSynthesis) speechSynthesis.cancel();
 }
 
 /* ---------- chats ---------- */
@@ -500,8 +589,9 @@ async function send() {
   try {
     const j = await api("/chat", { method: "POST", body: JSON.stringify({ chat_id: currentChat, message }) });
     currentChat = j.chat_id;
+    if (convoMode) setTimeout(function () { if (convoMode && !listening) startRecognition(); }, 500);
     if (localStorage.getItem("voiceSpeak") !== "0") speakText(j.answer, function () {
-      if (convoMode) startRecognition();
+      if (convoMode && !listening) startRecognition();
     });
     thinking.querySelector(".bubble").textContent = j.answer;
     let srcs = "";
