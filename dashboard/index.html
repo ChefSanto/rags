@@ -181,6 +181,8 @@ a{color:var(--accent)}
     <p class="meta">Speech recognition runs in your browser (Chrome/Edge use Google's engine, Safari uses Apple's); replies are spoken by your device's voices. Spoken questions are stored as text in your chats, exactly like typed ones — no audio is ever stored.</p>
     <table class="form-table">
       <tr><th>Speak replies aloud</th><td><input type="checkbox" id="vSpeak" checked></td></tr>
+      <tr><th>Spoken voice</th><td><select id="vPersona"><option value="troy">Troy (male)</option><option value="jess">Jess (female)</option><option value="emma">Emma (female)</option><option value="leo">Leo (male)</option><option value="dan">Dan (male)</option></select></td></tr>
+      <tr><th>Reply speed</th><td><input type="range" id="vPlayRate" min="0.7" max="1.6" step="0.1" value="1" style="width:200px"> <span id="vPlayRateVal">1×</span></td></tr>
       <tr><th>Voice</th><td><select id="vVoice" style="max-width:340px"></select></td></tr>
       <tr><th>Speed</th><td><input type="range" id="vRate" min="0.5" max="2" step="0.1" value="1" style="width:200px"> <span id="vRateVal">1×</span></td></tr>
       <tr><th>Pitch</th><td><input type="range" id="vPitch" min="0.5" max="2" step="0.1" value="1" style="width:200px"> <span id="vPitchVal">1</span></td></tr>
@@ -341,12 +343,13 @@ async function speakText(text, onEnd) {
     const r = await fetch(WORKER + "/speak", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Ingest-Key": key() },
-      body: JSON.stringify({ text: String(text).slice(0, 1800) }),
+      body: JSON.stringify({ text: String(text).slice(0, 1800), voice: localStorage.getItem("voicePersona") || "troy" }),
     });
     if (!r.ok) throw new Error("tts " + r.status);
     const blob = await r.blob();
     const url = URL.createObjectURL(blob);
     const a = new Audio(url);
+    a.playbackRate = parseFloat(localStorage.getItem("voicePlayRate") || "1");
     serverAudio = a;
     a.onended = function () { URL.revokeObjectURL(url); serverAudio = null; done(); };
     a.onerror = function () { URL.revokeObjectURL(url); serverAudio = null; legacySpeak(text, done); };
@@ -377,6 +380,9 @@ if ("speechSynthesis" in window) {
 function loadVoiceSettings() {
   fillVoiceSelect();
   document.getElementById("vSpeak").checked = localStorage.getItem("voiceSpeak") !== "0";
+  document.getElementById("vPersona").value = localStorage.getItem("voicePersona") || "troy";
+  document.getElementById("vPlayRate").value = localStorage.getItem("voicePlayRate") || "1";
+  document.getElementById("vPlayRateVal").textContent = (localStorage.getItem("voicePlayRate") || "1") + "×";
   document.getElementById("vRate").value = localStorage.getItem("voiceRate") || "1";
   document.getElementById("vPitch").value = localStorage.getItem("voicePitch") || "1";
   document.getElementById("vRateVal").textContent = (localStorage.getItem("voiceRate") || "1") + "×";
@@ -387,6 +393,8 @@ function loadVoiceSettings() {
 (function bindVoiceSettings() {
   const bind = function (id, ev, fn) { document.getElementById(id)[ev] = fn; };
   bind("vSpeak", "onchange", function (e) { localStorage.setItem("voiceSpeak", e.target.checked ? "1" : "0"); });
+  bind("vPersona", "onchange", function (e) { localStorage.setItem("voicePersona", e.target.value); });
+  bind("vPlayRate", "oninput", function (e) { localStorage.setItem("voicePlayRate", e.target.value); document.getElementById("vPlayRateVal").textContent = e.target.value + "×"; });
   bind("vVoice", "onchange", function (e) { localStorage.setItem("voiceName", e.target.value); });
   bind("vRate", "oninput", function (e) { localStorage.setItem("voiceRate", e.target.value); document.getElementById("vRateVal").textContent = e.target.value + "×"; });
   bind("vPitch", "oninput", function (e) { localStorage.setItem("voicePitch", e.target.value); document.getElementById("vPitchVal").textContent = e.target.value; });
