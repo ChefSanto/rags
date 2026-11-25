@@ -434,7 +434,8 @@ async function startRecognition() {
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || ("HTTP " + r.status));
       const text = (j.text || "").trim();
-      if (!text) { pauseOrStop(); return; }
+      const cleaned = text.replace(/[^\p{L}\p{N} ]/gu, "").trim();
+      if (!text || cleaned.length < 2) { pauseOrStop(); return; }   // noise/punctuation-only = silence
       const t = text.toLowerCase().replace(/[^\\p{L}\\p{N} ]/gu, "").trim();
       if (/^(thank you|thanks|thankyou|terima kasih|thats all|that is all|nothing else|goodbye|good bye|bye bye|bye|stop|no more|ok thanks|okay thanks|see you)/.test(t)) {
         endConvo(true);
