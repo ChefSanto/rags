@@ -106,12 +106,14 @@ async function retrieve(env, question, topK) {
   const candidates = parseInt(env.RERANK_CANDIDATES || "20", 10);
   const fetchN = Math.max(topK * 2, Math.ceil(candidates / 2));
 
-  const [fiqaRes, persRes] = await Promise.all([
+  const [fiqaRes, persRes, webRes] = await Promise.all([
     env.VECTORIZE.query(vector, { topK: fetchN, returnMetadata: "all" }),
     env.VECTORIZE_PERSONAL.query(vector, { topK: fetchN, returnMetadata: "all" })
       .catch(() => ({ matches: [] })),
+    env.VECTORIZE_WEB.query(vector, { topK: fetchN, returnMetadata: "all" })
+      .catch(() => ({ matches: [] })),
   ]);
-  let hits = [...(fiqaRes.matches || []), ...(persRes.matches || [])]
+  let hits = [...(fiqaRes.matches || []), ...(persRes.matches || []), ...(webRes.matches || [])]
     .sort((a, b) => b.score - a.score)
     .slice(0, candidates);
 
@@ -300,7 +302,7 @@ async function handleChatGet(url, env) {
 
 async function handleDocuments(env) {
   const { results } = await env.DB.prepare(
-    "SELECT name, chunks, created_at, updated_at FROM uploads ORDER BY updated_at DESC"
+    "SELECT name, chunks, source, created_at, updated_at FROM uploads ORDER BY updated_at DESC"
   ).all();
   return Response.json({ documents: results });
 }
@@ -314,12 +316,14 @@ async function handleIngest(request, env) {
   if (chunks.length > 500) {
     return Response.json({ error: "max 500 chunks per request" }, { status: 400 });
   }
+  const ingestIsWeb = (body && body.index) === "web";
   let uploaded = 0;
   for (let i = 0; i < chunks.length; i += 50) {
     const batch = chunks.slice(i, i + 50);
     const texts = batch.map((c) => String(c.text).slice(0, 2000));
+    const target = ingestIsWeb ? env.VECTORIZE_WEB : env.VECTORIZE_PERSONAL;
     const emb = await env.AI.run("@cf/baai/bge-small-en-v1.5", { text: texts });
-    await env.VECTORIZE_PERSONAL.upsert(
+    await target.upsert(
       batch.map((c, k) => ({
         id: String(c.id).slice(0, 200),
         values: emb.data[k],
@@ -330,9 +334,9 @@ async function handleIngest(request, env) {
   }
   if (body.name) {
     await env.DB.prepare(
-      `INSERT INTO uploads (name, chunks, created_at, updated_at) VALUES (?, ?, datetime('now'), datetime('now'))
-       ON CONFLICT(name) DO UPDATE SET chunks = excluded.chunks, updated_at = datetime('now')`
-    ).bind(String(body.name).slice(0, 200), parseInt(body.total_chunks || chunks.length, 10)).run();
+      `INSERT INTO uploads (name, chunks, source, created_at, updated_at) VALUES (?, ?, ?, datetime('now'), datetime('now'))
+       ON CONFLICT(name) DO UPDATE SET chunks = excluded.chunks, source = excluded.source, updated_at = datetime('now')`
+    ).bind(String(body.name).slice(0, 200), parseInt(body.total_chunks || chunks.length, 10), ingestIsWeb ? "web" : "personal").run();
   }
   return Response.json({ uploaded });
 }
