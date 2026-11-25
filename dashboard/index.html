@@ -141,6 +141,7 @@ a{color:var(--accent)}
     <button class="navitem" data-view="upload">📄&nbsp; Upload docs</button>
     <button class="navitem" data-view="docs">🗂️&nbsp; Documents</button>
     <button class="navitem" data-view="logs">📋&nbsp; Query log</button>
+    <button class="navitem" data-view="voice">🎙️&nbsp; Voice</button>
     <button class="navitem" data-view="lab">🧪&nbsp; Lab status</button>
     <div class="healthline">worker: <a id="workerUrl" target="_blank">health</a></div>
   </div>
@@ -154,6 +155,7 @@ a{color:var(--accent)}
       <div class="msgs" id="msgs"></div>
       <div class="composer">
         <input type="text" id="chatIn" placeholder="Message AI Lab…" onkeydown="if(event.key==='Enter')send()">
+        <button class="btn ghost" id="micBtn" onclick="toggleMic()" title="speak your question">🎙️</button>
         <button class="btn" onclick="send()">Send</button>
       </div>
     </div>
@@ -172,6 +174,18 @@ a{color:var(--accent)}
   <div class="content" id="view-docs"><div class="narrow">
     <span class="meta">Your uploaded documents (personal index). <button class="btn" onclick="loadDocs()">Refresh</button></span>
     <div id="docsOut"></div>
+  </div></div>
+
+  <div class="content" id="view-voice"><div class="narrow">
+    <p class="meta">Speech recognition runs in your browser (Chrome/Edge use Google's engine, Safari uses Apple's); replies are spoken by your device's voices. Spoken questions are stored as text in your chats, exactly like typed ones — no audio is ever stored.</p>
+    <table class="form-table">
+      <tr><th>Speak replies aloud</th><td><input type="checkbox" id="vSpeak" checked></td></tr>
+      <tr><th>Voice</th><td><select id="vVoice" style="max-width:340px"></select></td></tr>
+      <tr><th>Speed</th><td><input type="range" id="vRate" min="0.5" max="2" step="0.1" value="1" style="width:200px"> <span id="vRateVal">1×</span></td></tr>
+      <tr><th>Pitch</th><td><input type="range" id="vPitch" min="0.5" max="2" step="0.1" value="1" style="width:200px"> <span id="vPitchVal">1</span></td></tr>
+      <tr><th>Recognition language</th><td><select id="vLang"><option value="en-US">English (US)</option><option value="en-GB">English (UK)</option><option value="zh-CN">中文（简体）</option><option value="zh-TW">中文（繁體）</option><option value="ms-MY">Bahasa Melayu</option></select></td></tr>
+      <tr><th>Auto-send after speaking</th><td><input type="checkbox" id="vAuto"></td></tr>
+    </table>
   </div></div>
 
   <div class="content" id="view-logs"><div class="narrow">
@@ -249,7 +263,7 @@ async function api(path, opts = {}) {
 }
 
 const TITLES = { chat:["Chat",""], upload:["Upload documents","PDF or pasted text -> personal index"],
-  docs:["Documents","your uploaded files"], logs:["Query log","every question, answers logged"], lab:["Lab status","benchmark results live from GitHub"] };
+  docs:["Documents","your uploaded files"], logs:["Query log","every question, answers logged"], voice:["Voice settings","speech, voices, spoken replies"], lab:["Lab status","benchmark results live from GitHub"] };
 function showView(v) {
   document.querySelectorAll(".content").forEach(x => x.classList.remove("active"));
   document.querySelectorAll(".navitem").forEach(x => x.classList.toggle("active", x.dataset.view === v));
@@ -259,6 +273,7 @@ function showView(v) {
   if (v === "logs") loadLogs();
   if (v === "lab") loadLab();
   if (v === "docs") loadDocs();
+  if (v === "voice") loadVoiceSettings();
 }
 document.querySelectorAll(".navitem").forEach(b => b.onclick = () => showView(b.dataset.view));
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -293,6 +308,74 @@ async function renderWelcome() {
 function askChip(text) {
   document.getElementById("chatIn").value = text;
   send();
+}
+
+/* ---------- voice ---------- */
+function speakText(text) {
+  if (!("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(String(text).slice(0, 800));
+  const name = localStorage.getItem("voiceName");
+  const v = speechSynthesis.getVoices().find(function (x) { return x.name === name; });
+  if (v) u.voice = v;
+  u.rate = parseFloat(localStorage.getItem("voiceRate") || "1");
+  u.pitch = parseFloat(localStorage.getItem("voicePitch") || "1");
+  speechSynthesis.speak(u);
+}
+function speakBubble(btn) {
+  speakText(btn.parentElement.querySelector(".bubble").textContent);
+}
+function fillVoiceSelect() {
+  const sel = document.getElementById("vVoice");
+  if (!sel) return;
+  const current = localStorage.getItem("voiceName") || "";
+  sel.innerHTML = '<option value="">(default voice)</option>' +
+    speechSynthesis.getVoices().map(function (v) {
+      return '<option value="' + esc(v.name) + '"' + (v.name === current ? " selected" : "") +
+             ">" + esc(v.name) + " (" + esc(v.lang) + ")</option>";
+    }).join("");
+}
+if ("speechSynthesis" in window) {
+  fillVoiceSelect();
+  speechSynthesis.onvoiceschanged = fillVoiceSelect;
+}
+function loadVoiceSettings() {
+  fillVoiceSelect();
+  document.getElementById("vSpeak").checked = localStorage.getItem("voiceSpeak") !== "0";
+  document.getElementById("vRate").value = localStorage.getItem("voiceRate") || "1";
+  document.getElementById("vPitch").value = localStorage.getItem("voicePitch") || "1";
+  document.getElementById("vRateVal").textContent = (localStorage.getItem("voiceRate") || "1") + "×";
+  document.getElementById("vPitchVal").textContent = localStorage.getItem("voicePitch") || "1";
+  document.getElementById("vLang").value = localStorage.getItem("recogLang") || "en-US";
+  document.getElementById("vAuto").checked = localStorage.getItem("voiceAutoSend") === "1";
+}
+(function bindVoiceSettings() {
+  const bind = function (id, ev, fn) { document.getElementById(id)[ev] = fn; };
+  bind("vSpeak", "onchange", function (e) { localStorage.setItem("voiceSpeak", e.target.checked ? "1" : "0"); });
+  bind("vVoice", "onchange", function (e) { localStorage.setItem("voiceName", e.target.value); });
+  bind("vRate", "oninput", function (e) { localStorage.setItem("voiceRate", e.target.value); document.getElementById("vRateVal").textContent = e.target.value + "×"; });
+  bind("vPitch", "oninput", function (e) { localStorage.setItem("voicePitch", e.target.value); document.getElementById("vPitchVal").textContent = e.target.value; });
+  bind("vLang", "onchange", function (e) { localStorage.setItem("recogLang", e.target.value); });
+  bind("vAuto", "onchange", function (e) { localStorage.setItem("voiceAutoSend", e.target.checked ? "1" : "0"); });
+})();
+let recog = null, listening = false;
+function toggleMic() {
+  const btn = document.getElementById("micBtn");
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (listening && recog) { recog.stop(); return; }
+  if (!SR) { btn.textContent = "n/a"; setTimeout(function () { btn.textContent = "🎙️"; }, 1500); return; }
+  recog = new SR();
+  recog.lang = localStorage.getItem("recogLang") || "en-US";
+  recog.interimResults = false;
+  recog.onresult = function (e) {
+    document.getElementById("chatIn").value = e.results[0][0].transcript;
+    if (localStorage.getItem("voiceAutoSend") === "1") send();
+  };
+  recog.onend = function () { listening = false; btn.textContent = "🎙️"; };
+  recog.onerror = function () { listening = false; btn.textContent = "🎙️"; };
+  listening = true;
+  btn.textContent = "⏺ listening…";
+  recog.start();
 }
 
 /* ---------- chats ---------- */
@@ -349,7 +432,8 @@ function appendMsg(role, content, sources) {
   const wrap = document.createElement("div");
   wrap.className = "msg " + (role === "user" ? "user" : "bot");
   let html = '<div class="msgrow"><div class="bubble">' + esc(content) + '</div></div>';
-  if (role !== "user") html += '<button class="copybtn" onclick="copyText(this)">copy</button>';
+  if (role !== "user") html += '<button class="copybtn" onclick="copyText(this)">copy</button>' +
+    '<button class="copybtn" onclick="speakBubble(this)" title="read aloud">🔊</button>';
   for (const s of sources) {
     html += '<div class="src"><span class="score">' + (s.score ?? 0).toFixed(3) + '</span> #' +
             esc(String(s.id)) + ' — ' + esc(s.preview) + '…</div>';
@@ -368,11 +452,13 @@ async function send() {
   const message = input.value.trim();
   if (!message || busy) return;
   busy = true; input.value = "";
+  if (window.speechSynthesis) speechSynthesis.cancel();
   appendMsg("user", message, []);
   const thinking = appendMsg("bot", "thinking…", []);
   try {
     const j = await api("/chat", { method: "POST", body: JSON.stringify({ chat_id: currentChat, message }) });
     currentChat = j.chat_id;
+    if (localStorage.getItem("voiceSpeak") !== "0") speakText(j.answer);
     thinking.querySelector(".bubble").textContent = j.answer;
     let srcs = "";
     for (const s of j.sources) {
