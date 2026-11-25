@@ -435,7 +435,15 @@ async function startRecognition() {
       if (!r.ok) throw new Error(j.error || ("HTTP " + r.status));
       const text = (j.text || "").trim();
       const cleaned = text.replace(/[^\p{L}\p{N} ]/gu, "").trim();
-      if (!text || cleaned.length < 2) { pauseOrStop(); return; }   // noise/punctuation-only = silence
+      const t = cleaned.toLowerCase().trim();
+      if (!text || cleaned.length < 3) { pauseOrStop(); return; }
+      if (["the","a","an","it","this","that","um","uh","er","hmm"].includes(t)) { pauseOrStop(); return; }
+      if (t === (window.__lastQuery || "")) { pauseOrStop(); return; }
+      window.__lastQuery = t;
+      if (/^(thank you|thanks|thankyou|terima kasih|thats all|that is all|nothing else|goodbye|good bye|bye bye|bye|stop|no more|ok thanks|okay thanks|see you|shut up|enough)/.test(t)) {
+        endConvo(true);
+        return;
+      }   // noise/punctuation-only = silence
       const t = text.toLowerCase().replace(/[^\\p{L}\\p{N} ]/gu, "").trim();
       if (/^(thank you|thanks|thankyou|terima kasih|thats all|that is all|nothing else|goodbye|good bye|bye bye|bye|stop|no more|ok thanks|okay thanks|see you)/.test(t)) {
         endConvo(true);
@@ -510,6 +518,16 @@ function endConvo(farewell) {
 function toggleConvo() {
   if (convoMode) { exitConvo(); return; }
   convoMode = true; emptyStreak = 0; startRecognition();
+}
+function endConvo(farewell) {
+  convoMode = false;
+  emptyStreak = 0;
+  if (document.getElementById("vConvo")) document.getElementById("vConvo").checked = false;
+  localStorage.setItem("voiceConvo", "0");
+  if (listening && mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+  stopServerAudio();
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  if (farewell) speakText("You are welcome. Press the microphone anytime to continue.");
 }
 function exitConvo() {
   convoMode = false;
@@ -710,8 +728,8 @@ async function loadDocs() {
   try {
     const j = await api("/documents");
     if (!j.documents || !j.documents.length) { out.innerHTML = '<div class="meta">Nothing uploaded yet.</div>'; return; }
-    let html = "<table><tr><th>document</th><th>chunks</th><th>updated (UTC)</th></tr>";
-    for (const d of j.documents) html += "<tr><td>" + esc(d.name) + "</td><td class='num'>" + d.chunks + "</td><td class='meta'>" + esc(d.updated_at) + "</td></tr>";
+    let html = "<table><tr><th>document</th><th>source</th><th>chunks</th><th>updated (UTC)</th></tr>";
+    for (const d of j.documents) html += "<tr><td>" + esc(d.name) + "</td><td>" + esc(d.source || "personal") + "</td><td class='num'>" + d.chunks + "</td><td class='meta'>" + esc(d.updated_at) + "</td></tr>";
     out.innerHTML = html + "</table>";
   } catch (e) { out.innerHTML = '<div class="meta err">' + esc(e.message) + '</div>'; }
 }
