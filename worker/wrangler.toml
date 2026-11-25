@@ -27,5 +27,6 @@ MODEL_PROVIDER = "groq"
 MODEL_NAME = "openai/gpt-oss-20b"
 # Reranker: retrieve RERANK_CANDIDATES, re-score with RERANK_MODEL, keep TOP_K.
 RERANK = "true"
+STT_LANGUAGE = "en"
 RERANK_MODEL = "@cf/baai/bge-reranker-base"
 RERANK_CANDIDATES = "20"
