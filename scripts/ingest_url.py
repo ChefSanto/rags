@@ -28,15 +28,31 @@ from ingest_documents import chunk_text  # reuse the same chunker
 WORKER = "https://ai-lab-worker.antwibrand.workers.dev"
 
 
+def fetch_bytes(url: str) -> bytes:
+    import urllib.request
+
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"})
+    with urllib.request.urlopen(req, timeout=90) as r:
+        return r.read()
+
+
 def fetch_text(url: str) -> str:
     import trafilatura
 
-    downloaded = trafilatura.fetch_url(url)
-    if not downloaded:
-        raise SystemExit(
-            "could not fetch the page (blocked, requires JS, or network issue).\n"
-            "fallback: open the page, save as PDF, use the dashboard Upload docs."
-        )
+    try:
+        raw = fetch_bytes(url)
+    except Exception as e:
+        raise SystemExit(f"fetch failed: {e}\nfallback: open the page, save as PDF, use the dashboard Upload docs.")
+    if raw[:4] == b"%PDF":
+        import fitz
+
+        doc = fitz.open(stream=raw, filetype="pdf")
+        text = "\n".join(page.get_text() for page in doc)
+        doc.close()
+        if len(text.strip()) < 200:
+            raise SystemExit("PDF has no text layer (scanned) - OCR needed.")
+        return text
+    downloaded = raw.decode("utf-8", errors="replace")
     low = downloaded.lstrip().lower()
     if "<html" not in low[:500] and not low.startswith("<"):
         return downloaded.strip()          # plain text / markdown (e.g. raw.githubusercontent)
@@ -73,8 +89,11 @@ def main() -> None:
             headers={"Content-Type": "application/json", "X-Ingest-Key": key,
                      "User-Agent": "curl/8.5.0"},  # Cloudflare bot-management rejects urllib UAs
         )
-        with urllib.request.urlopen(req, timeout=120) as r:
-            r.read()
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                r.read()
+        except urllib.error.HTTPError as e:
+            raise SystemExit(f"worker error {e.code}: {e.read().decode()[:300]}")
     print(f"done — '{slug}' is in your personal index; ask about it in the dashboard.")
 
 

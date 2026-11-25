@@ -13,6 +13,10 @@ index_name = "ai-lab-corpus"
 binding = "VECTORIZE_PERSONAL"
 index_name = "ai-lab-personal"
 
+[[vectorize]]
+binding = "VECTORIZE_WEB"
+index_name = "ai-lab-web"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "ai-lab"
