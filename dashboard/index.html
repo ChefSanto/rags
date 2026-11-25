@@ -435,6 +435,11 @@ async function startRecognition() {
       if (!r.ok) throw new Error(j.error || ("HTTP " + r.status));
       const text = (j.text || "").trim();
       if (!text) { pauseOrStop(); return; }
+      const t = text.toLowerCase().replace(/[^\\p{L}\\p{N} ]/gu, "").trim();
+      if (/^(thank you|thanks|thankyou|terima kasih|thats all|that is all|nothing else|goodbye|good bye|bye bye|bye|stop|no more|ok thanks|okay thanks|see you)/.test(t)) {
+        endConvo(true);
+        return;
+      }
       const low = text.toLowerCase();
       const last = (window.__lastAnswer || "").toLowerCase();
       let echo = false;
@@ -485,10 +490,21 @@ function pauseOrStop() {
   else setTimeout(function () { if (convoMode) startRecognition(); }, 300);
 }
 function toggleMic() {
+  if (convoMode) { endConvo(false); return; }   // one click kills the whole loop
   if (listening && mediaRecorder && mediaRecorder.state === "recording") { mediaRecorder.stop(); return; }
   stopServerAudio();
   if (window.speechSynthesis) speechSynthesis.cancel();
   startRecognition();
+}
+function endConvo(farewell) {
+  convoMode = false;
+  emptyStreak = 0;
+  if (document.getElementById("vConvo")) document.getElementById("vConvo").checked = false;
+  localStorage.setItem("voiceConvo", "0");
+  if (listening && mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+  stopServerAudio();
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  if (farewell) speakText("You are welcome. Press the microphone anytime to continue.");
 }
 function toggleConvo() {
   if (convoMode) { exitConvo(); return; }
