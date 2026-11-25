@@ -400,6 +400,10 @@ async function handleStt(request, env) {
   const form = new FormData();
   form.append("file", new Blob([audio], { type: ct }), "audio." + ext);
   form.append("model", "whisper-large-v3-turbo");
+  form.append("temperature", "0");
+  if (env.STT_LANGUAGE) form.append("language", env.STT_LANGUAGE);
+  const sttPrompt = env.STT_PROMPT || "A2H2 multimodal sentiment analysis model, retrieval augmented generation, FiQA finance corpus.";
+  if (sttPrompt) form.append("prompt", sttPrompt);
   const r = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
     method: "POST",
     headers: { Authorization: "Bearer " + env.GROQ_API_KEY, "User-Agent": "curl/8.5.0" },
