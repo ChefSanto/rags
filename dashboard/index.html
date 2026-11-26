@@ -4,51 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI Lab</title>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-:root{
-  --bg:#0b0d12; --side:#10131a; --panel:#151924; --panel2:#1b2130;
-  --fg:#e8ebf2; --dim:#8b93a7; --line:#232a3a; --accent:#5b9dff; --accent2:#7c5bff;
-  --ok:#3ddc84; --err:#ff6b6b; --radius:14px;
-  --shadow:0 6px 24px rgba(0,0,0,.35);
-}
+:root{--bg:#0b0d12;--side:#10131a;--panel:#151924;--panel2:#1b2130;--fg:#e8ebf2;--dim:#8b93a7;--line:#232a3a;--accent:#5b9dff;--accent2:#7c5bff;--ok:#3ddc84;--err:#ff6b6b}
 *{box-sizing:border-box}
-body{margin:0;font:15px/1.55 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
-  background:var(--bg);color:var(--fg);height:100vh;overflow:hidden}
+body{margin:0;font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--fg);height:100vh;overflow:hidden}
 button{font:inherit;cursor:pointer}
-input,textarea{font:inherit}
-
-/* ---------- unlock gate ---------- */
-#gate{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(1200px 600px at 30% 20%,#16203a 0%,var(--bg) 60%)}
-#gate .card{background:rgba(21,25,36,.9);border:1px solid var(--line);border-radius:20px;
-  padding:40px 36px;width:380px;box-shadow:var(--shadow);backdrop-filter:blur(8px);text-align:center}
-#gate .logo{font-size:26px;font-weight:800;letter-spacing:.3px;margin-bottom:4px}
+input,textarea,select{font:inherit}
+#gate{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:radial-gradient(1200px 600px at 30% 20%,#16203a 0%,var(--bg) 60%)}
+#gate .card{background:rgba(21,25,36,.9);border:1px solid var(--line);border-radius:20px;padding:40px 36px;width:380px;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.35);backdrop-filter:blur(8px)}
+#gate .logo{font-size:26px;font-weight:800;margin-bottom:4px}
 #gate .logo span{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
 #gate .sub{color:var(--dim);font-size:13px;margin-bottom:26px}
-#gate input{width:100%;background:#0c0f16;border:1px solid var(--line);color:var(--fg);border-radius:10px;
-  padding:13px 15px;outline:none;transition:border-color .15s}
+#gate input{width:100%;background:#0c0f16;border:1px solid var(--line);color:var(--fg);border-radius:10px;padding:13px 15px;outline:none}
 #gate input:focus{border-color:var(--accent)}
 #gate .hint{color:var(--err);font-size:12px;min-height:16px;margin-top:8px}
-#gate button{margin-top:10px;width:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));
-  border:0;color:#fff;font-weight:700;border-radius:10px;padding:13px}
-#gate button:disabled{opacity:.6;cursor:wait}
-.spin{display:inline-block;width:14px;height:14px;border:2px solid #fff6;border-top-color:#fff;
-  border-radius:50%;animation:rot .7s linear infinite;vertical-align:-2px;margin-right:6px}
-@keyframes rot{to{transform:rotate(360deg)}}
-
-/* ---------- app layout ---------- */
+#gate button{margin-top:10px;width:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border:0;color:#fff;font-weight:700;border-radius:10px;padding:13px}
+#gate button:disabled{opacity:.6}
 #app{display:none;height:100vh}
 #app.on{display:flex}
 aside{width:272px;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0}
 .brand{padding:18px 18px 14px;font-weight:800;font-size:17px}
 .brand span{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
-.newchat{margin:0 14px 10px;background:linear-gradient(90deg,var(--accent),var(--accent2));border:0;color:#fff;
-  font-weight:700;border-radius:11px;padding:11px}
+.newchat{margin:0 14px 10px;background:linear-gradient(90deg,var(--accent),var(--accent2));border:0;color:#fff;font-weight:700;border-radius:11px;padding:11px}
 .chatlist{flex:1;overflow-y:auto;padding:4px 10px}
-.chatitem{display:flex;align-items:center;gap:6px;padding:9px 11px;border-radius:9px;color:var(--dim);
-  font-size:14px;cursor:pointer}
+.chatitem{display:flex;align-items:center;gap:6px;padding:9px 11px;border-radius:9px;color:var(--dim);font-size:14px;cursor:pointer}
 .chatitem:hover{background:var(--panel2);color:var(--fg)}
 .chatitem.active{background:#22304d;color:var(--fg)}
 .chatitem .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -56,13 +37,11 @@ aside{width:272px;background:var(--side);border-right:1px solid var(--line);disp
 .chatitem:hover .acts{visibility:visible}
 .chatitem .acts a{text-decoration:none;margin-left:4px}
 .sidenav{border-top:1px solid var(--line);padding:8px}
-.navitem{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:none;border:0;
-  color:var(--dim);padding:10px 12px;border-radius:9px;font-size:14px}
+.navitem{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:none;border:0;color:var(--dim);padding:10px 12px;border-radius:9px;font-size:14px}
 .navitem:hover{background:var(--panel2);color:var(--fg)}
 .navitem.active{background:#22304d;color:var(--fg)}
 .healthline{padding:4px 14px 10px;font-size:11px;color:var(--dim)}
 .healthline a{color:var(--dim)}
-
 main{flex:1;display:flex;flex-direction:column;min-width:0}
 .topbar{padding:14px 26px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:12px}
 .topbar h2{font-size:16px;margin:0}
@@ -70,24 +49,19 @@ main{flex:1;display:flex;flex-direction:column;min-width:0}
 .content{flex:1;overflow-y:auto;display:none}
 .content.active{display:block}
 .narrow{max-width:800px;margin:0 auto;padding:22px 22px 40px}
-input[type=text],input[type=password],input:not([type]),textarea{width:100%;background:#0c0f16;color:var(--fg);
-  border:1px solid var(--line);border-radius:11px;padding:12px 14px;outline:none;transition:border-color .15s}
-input:focus,textarea:focus{border-color:var(--accent)}
-.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:0;color:#fff;font-weight:700;
-  border-radius:11px;padding:11px 18px}
+input[type=text],input[type=password],input:not([type]),textarea,select{width:100%;background:#0c0f16;color:var(--fg);border:1px solid var(--line);border-radius:11px;padding:12px 14px;outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:0;color:#fff;font-weight:700;border-radius:11px;padding:11px 18px}
 .btn.ghost{background:var(--panel2);color:var(--fg);border:1px solid var(--line)}
 .meta{color:var(--dim);font-size:12px;margin-top:8px}
 .err{color:var(--err)}
-.drop{border:2px dashed var(--line);border-radius:16px;padding:36px;text-align:center;color:var(--dim);
-  margin-top:8px;cursor:pointer;transition:border-color .15s}
+.drop{border:2px dashed var(--line);border-radius:16px;padding:36px;text-align:center;color:var(--dim);margin-top:8px;cursor:pointer}
 .drop.over{border-color:var(--accent);color:var(--fg)}
 table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
 th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 th{color:var(--dim);font-weight:600}
 td.num{font-variant-numeric:tabular-nums}
 a{color:var(--accent)}
-
-/* chat */
 .chatcol{max-width:840px;margin:0 auto;height:100%;display:flex;flex-direction:column;padding:0 22px}
 .msgs{flex:1;overflow-y:auto;padding:18px 0}
 .msg{margin:14px 0;display:flex;flex-direction:column;animation:fadeup .25s ease}
@@ -104,20 +78,14 @@ a{color:var(--accent)}
 .copybtn:hover{color:var(--fg);border-color:var(--dim)}
 .composer{display:flex;gap:10px;padding:14px 0 6px;border-top:1px solid var(--line)}
 .empty{text-align:center;margin-top:13vh}
-.w-hello{font-family:'Sora',sans-serif;font-size:48px;font-weight:800;letter-spacing:-.5px;min-height:60px;
-  background:linear-gradient(92deg,#5b9dff 0%,#7c5bff 55%,#c56bff 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.w-hello{font-family:'Sora',sans-serif;font-size:48px;font-weight:800;letter-spacing:-.5px;min-height:60px;background:linear-gradient(92deg,#5b9dff 0%,#7c5bff 55%,#c56bff 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .w-sub{font-family:'Sora',sans-serif;font-size:18px;color:var(--dim);min-height:28px;margin-top:8px}
 .caret{display:inline-block;width:3px;height:.95em;background:var(--accent);margin-left:4px;vertical-align:-3px;animation:blink .8s step-end infinite}
 @keyframes blink{50%{opacity:0}}
 .w-chips{margin-top:30px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-.chip{background:var(--panel);border:1px solid var(--line);color:var(--dim);border-radius:999px;
-  padding:9px 18px;font-size:13px;transition:all .15s}
-.chip:hover{color:var(--fg);border-color:var(--accent);transform:translateY(-2px);box-shadow:0 4px 14px rgba(91,157,255,.15)}
-
-@media(max-width:860px){
-  aside{display:none}
-  .chatcol{padding:0 14px}
-}
+.chip{background:var(--panel);border:1px solid var(--line);color:var(--dim);border-radius:999px;padding:9px 18px;font-size:13px;transition:all .15s}
+.chip:hover{color:var(--fg);border-color:var(--accent);transform:translateY(-2px)}
+@media(max-width:860px){aside{display:none}.chatcol{padding:0 14px}}
 </style>
 </head>
 <body>
@@ -140,8 +108,8 @@ a{color:var(--accent)}
   <div class="sidenav">
     <button class="navitem" data-view="upload">📄&nbsp; Upload docs</button>
     <button class="navitem" data-view="docs">🗂️&nbsp; Documents</button>
-    <button class="navitem" data-view="logs">📋&nbsp; Query log</button>
     <button class="navitem" data-view="voice">🎙️&nbsp; Voice</button>
+    <button class="navitem" data-view="logs">📋&nbsp; Query log</button>
     <button class="navitem" data-view="lab">🧪&nbsp; Lab status</button>
     <div class="healthline">worker: <a id="workerUrl" target="_blank">health</a></div>
   </div>
@@ -155,8 +123,7 @@ a{color:var(--accent)}
       <div class="msgs" id="msgs"></div>
       <div class="composer">
         <input type="text" id="chatIn" placeholder="Message AI Lab…" onkeydown="if(event.key==='Enter')send()">
-        <button class="btn ghost" id="convoBtn" onclick="toggleConvo()" title="hands-free conversation mode">🗣️</button>
-        <button class="btn ghost" id="micBtn" onclick="toggleMic()" title="speak your question">🎙️</button>
+        <button class="btn ghost" id="micBtn" onclick="toggleMic()" title="speak (click during conversation mode to stop)">🎙️</button>
         <button class="btn" onclick="send()">Send</button>
       </div>
     </div>
@@ -173,21 +140,21 @@ a{color:var(--accent)}
   </div></div>
 
   <div class="content" id="view-docs"><div class="narrow">
-    <span class="meta">Your uploaded documents (personal index). <button class="btn" onclick="loadDocs()">Refresh</button></span>
+    <span class="meta">Your knowledge base, by folder: <b>personal</b> (uploads) · <b>web</b> (internet) · <b>corpus</b> (FiQA). Every question searches all three. <button class="btn" onclick="loadDocs()">Refresh</button></span>
     <div id="docsOut"></div>
   </div></div>
 
   <div class="content" id="view-voice"><div class="narrow">
-    <p class="meta">Speech recognition runs in your browser (Chrome/Edge use Google's engine, Safari uses Apple's); replies are spoken by your device's voices. Spoken questions are stored as text in your chats, exactly like typed ones — no audio is ever stored.</p>
+    <p class="meta">Speech is transcribed by Groq Whisper and replies are spoken by a neural voice (falling back to your device's voice if needed). Spoken questions are stored as text in your chats — no audio is ever stored.</p>
     <table class="form-table">
+      <tr><th>Hands-free conversation</th><td><input type="checkbox" id="vConvo"> <span class="meta">reopen the mic after each reply, until you say thank you/stop or click 🎙️</span></td></tr>
       <tr><th>Speak replies aloud</th><td><input type="checkbox" id="vSpeak" checked></td></tr>
       <tr><th>Spoken voice</th><td><select id="vPersona"><option value="troy">Troy (male)</option><option value="jess">Jess (female)</option><option value="emma">Emma (female)</option><option value="leo">Leo (male)</option><option value="dan">Dan (male)</option></select></td></tr>
       <tr><th>Reply speed</th><td><input type="range" id="vPlayRate" min="0.7" max="1.6" step="0.1" value="1" style="width:200px"> <span id="vPlayRateVal">1×</span></td></tr>
-      <tr><th>Voice</th><td><select id="vVoice" style="max-width:340px"></select></td></tr>
-      <tr><th>Speed</th><td><input type="range" id="vRate" min="0.5" max="2" step="0.1" value="1" style="width:200px"> <span id="vRateVal">1×</span></td></tr>
-      <tr><th>Pitch</th><td><input type="range" id="vPitch" min="0.5" max="2" step="0.1" value="1" style="width:200px"> <span id="vPitchVal">1</span></td></tr>
       <tr><th>Recognition language</th><td><select id="vLang"><option value="en-US">English (US)</option><option value="en-GB">English (UK)</option><option value="zh-CN">中文（简体）</option><option value="zh-TW">中文（繁體）</option><option value="ms-MY">Bahasa Melayu</option></select></td></tr>
       <tr><th>Auto-send after speaking</th><td><input type="checkbox" id="vAuto"></td></tr>
+      <tr><th>Browser fallback voice</th><td><select id="vVoice" style="max-width:340px"></select></td></tr>
+      <tr><th>Browser speed / pitch</th><td><input type="range" id="vRate" min="0.5" max="2" step="0.1" value="1" style="width:140px"> <input type="range" id="vPitch" min="0.5" max="2" step="0.1" value="1" style="width:140px"></td></tr>
     </table>
   </div></div>
 
@@ -211,365 +178,275 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs
 
 /* ---------- gate ---------- */
 const gate = document.getElementById("gate"), app = document.getElementById("app");
-function key() { return localStorage.getItem("ailabKey") || ""; }
-async function tryUnlock() {
+function key(){ return localStorage.getItem("ailabKey") || ""; }
+async function tryUnlock(){
   const k = document.getElementById("gateKey").value.trim();
   const hint = document.getElementById("gateHint"), btn = document.getElementById("gateBtn");
-  if (!k) { hint.textContent = "enter the passphrase"; return; }
-  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>checking…';
-  try {
+  if(!k){ hint.textContent = "enter the passphrase"; return; }
+  btn.disabled = true; btn.textContent = "checking…";
+  try{
     const r = await fetch(WORKER + "/chats", { headers: { "X-Ingest-Key": k } });
-    if (r.status === 401) {
-      hint.textContent = "invalid passphrase — try again";
-      localStorage.removeItem("ailabKey");
-    } else if (r.ok) {
-      localStorage.setItem("ailabKey", k);
-      enter();
-    } else {
-      hint.textContent = "worker error " + r.status;
-    }
-  } catch (e) {
-    hint.textContent = "cannot reach worker: " + e.message;
-  }
+    if(r.status === 401){ hint.textContent = "invalid passphrase — try again"; localStorage.removeItem("ailabKey"); }
+    else if(r.ok){ localStorage.setItem("ailabKey", k); enter(); }
+    else hint.textContent = "worker error " + r.status;
+  }catch(e){ hint.textContent = "cannot reach worker: " + e.message; }
   btn.disabled = false; btn.textContent = "Unlock";
 }
-function enter() {
-  gate.style.display = "none";
-  app.classList.add("on");
-  loadChats();
-  renderWelcome();
-}
-async function boot() {
-  // validate stored key; re-gate if invalid
-  try {
+function enter(){ gate.style.display = "none"; app.classList.add("on"); loadChats(); renderWelcome(); }
+async function boot(){
+  try{
     const r = await fetch(WORKER + "/chats", { headers: { "X-Ingest-Key": key() } });
-    if (r.status === 401) { localStorage.removeItem("ailabKey"); location.reload(); return; }
-    if (!r.ok) { document.getElementById("gateHint").textContent = "worker error " + r.status; return; }
-  } catch (e) {
-    document.getElementById("gateHint").textContent = "cannot reach worker — check connection";
-    return;
-  }
+    if(r.status === 401){ localStorage.removeItem("ailabKey"); location.reload(); return; }
+    if(!r.ok){ document.getElementById("gateHint").textContent = "worker error " + r.status; return; }
+  }catch(e){ document.getElementById("gateHint").textContent = "cannot reach worker — check connection"; return; }
   enter();
 }
-if (key()) boot();  // returning visitor: validate silently, gate only if bad
+if(key()) boot();
 
-/* ---------- api helper: every call carries the key; 401 re-gates ---------- */
-async function api(path, opts = {}) {
-  const r = await fetch(WORKER + path, {
-    ...opts,
-    headers: { "Content-Type": "application/json", "X-Ingest-Key": key(), ...(opts.headers || {}) },
-  });
-  if (r.status === 401) { localStorage.removeItem("ailabKey"); location.reload(); }
+/* ---------- api ---------- */
+async function api(path, opts = {}){
+  const r = await fetch(WORKER + path, { ...opts,
+    headers: { "Content-Type": "application/json", "X-Ingest-Key": key(), ...(opts.headers || {}) } });
+  if(r.status === 401){ localStorage.removeItem("ailabKey"); location.reload(); }
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.error || ("HTTP " + r.status));
+  if(!r.ok) throw new Error(j.error || ("HTTP " + r.status));
   return j;
 }
-
-const TITLES = { chat:["Chat",""], upload:["Upload documents","PDF or pasted text -> personal index"],
-  docs:["Documents","your uploaded files"], logs:["Query log","every question, answers logged"], voice:["Voice settings","speech, voices, spoken replies"], lab:["Lab status","benchmark results live from GitHub"] };
-function showView(v) {
+const TITLES = { chat:["Chat",""], upload:["Upload documents","PDF or pasted text -> personal folder"],
+  docs:["Documents","your knowledge base, by folder"], voice:["Voice settings","speech, voices, conversation mode"],
+  logs:["Query log","every question, answers logged"], lab:["Lab status","benchmark results live from GitHub"] };
+function showView(v){
   document.querySelectorAll(".content").forEach(x => x.classList.remove("active"));
   document.querySelectorAll(".navitem").forEach(x => x.classList.toggle("active", x.dataset.view === v));
   document.getElementById("view-" + v).classList.add("active");
   document.getElementById("viewTitle").textContent = TITLES[v][0];
   document.getElementById("viewSub").textContent = TITLES[v][1];
-  if (v === "logs") loadLogs();
-  if (v === "lab") loadLab();
-  if (v === "docs") loadDocs();
-  if (v === "voice") loadVoiceSettings();
+  if(v === "logs") loadLogs();
+  if(v === "lab") loadLab();
+  if(v === "docs") loadDocs();
+  if(v === "voice") loadVoiceSettings();
 }
 document.querySelectorAll(".navitem").forEach(b => b.onclick = () => showView(b.dataset.view));
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
 /* ---------- welcome ---------- */
 let typeTimers = [];
-function typeInto(el, text, speed) {
+function typeInto(el, text, speed){
   return new Promise(res => {
     let i = 0;
-    (function step() {
+    (function step(){
       i++;
-      el.innerHTML = esc(text.slice(0, i)) + (i < text.length ? '<span class="caret"></span>' : '');
-      if (i < text.length) typeTimers.push(setTimeout(step, speed));
-      else res();
+      el.innerHTML = esc(text.slice(0, i)) + (i < text.length ? '<span class="caret"></span>' : "");
+      if(i < text.length) typeTimers.push(setTimeout(step, speed)); else res();
     })();
   });
 }
-async function renderWelcome() {
+async function renderWelcome(){
   typeTimers.forEach(clearTimeout); typeTimers = [];
-  const m = document.getElementById("msgs");
-  m.innerHTML = '<div class="empty"><div class="w-hello" id="wHello"></div>' +
+  document.getElementById("msgs").innerHTML =
+    '<div class="empty"><div class="w-hello" id="wHello"></div>' +
     '<div class="w-sub" id="wSub1"></div><div class="w-sub" id="wSub2"></div>' +
     '<div class="w-chips" id="wChips" style="visibility:hidden">' +
     '<button class="chip" onclick="askChip(this.textContent)">What is A2H2?</button>' +
-    '<button class="chip" onclick="askChip(this.textContent)">Summarize the A2H2 contributions</button>' +
+    '<button class="chip" onclick="askChip(this.textContent)">What did the routing study find?</button>' +
     '<button class="chip" onclick="askChip(this.textContent)">What is a diversified portfolio?</button></div></div>';
   await typeInto(document.getElementById("wHello"), "Welcome, ChefSanto.", 60);
   await typeInto(document.getElementById("wSub1"), "Ask about your documents or the corpus.", 20);
   await typeInto(document.getElementById("wSub2"), "Each conversation keeps its own context.", 20);
   document.getElementById("wChips").style.visibility = "visible";
 }
-function askChip(text) {
-  document.getElementById("chatIn").value = text;
-  send();
-}
+function askChip(t){ document.getElementById("chatIn").value = t; send(); }
 
 /* ---------- voice ---------- */
 let serverAudio = null;
-function stopServerAudio() {
-  if (serverAudio) { try { serverAudio.pause(); } catch (e) {} serverAudio = null; }
-  window.__speaking = false;
-  window.__speakingServer = false;
+function stopServerAudio(){
+  if(serverAudio){ try{ serverAudio.pause(); }catch(e){} serverAudio = null; }
+  window.__speaking = false; window.__speakingServer = false;
 }
-function legacySpeak(text, done) {
-  if (!("speechSynthesis" in window)) { done(); return; }
+function legacySpeak(text, done){
+  if(!("speechSynthesis" in window)){ done(); return; }
   const u = new SpeechSynthesisUtterance(String(text).slice(0, 800));
-  const name = localStorage.getItem("voiceName");
-  const v = speechSynthesis.getVoices().find(function (x) { return x.name === name; });
-  if (v) u.voice = v;
+  const v = speechSynthesis.getVoices().find(x => x.name === localStorage.getItem("voiceName"));
+  if(v) u.voice = v;
   u.rate = parseFloat(localStorage.getItem("voiceRate") || "1");
   u.pitch = parseFloat(localStorage.getItem("voicePitch") || "1");
   u.onend = done;
   speechSynthesis.speak(u);
 }
-async function speakText(text, onEnd) {
-  window.__speaking = true;
-  window.__speakingServer = true;
-  const done = function () {
-    window.__speaking = false;
-    window.__speakingServer = false;
-    if (onEnd) onEnd();
-  };
-  try {
-    const r = await fetch(WORKER + "/speak", {
-      method: "POST",
+async function speakText(text, onEnd){
+  window.__speaking = true; window.__speakingServer = true;
+  const done = function(){ window.__speaking = false; window.__speakingServer = false; if(onEnd) onEnd(); };
+  try{
+    const r = await fetch(WORKER + "/speak", { method: "POST",
       headers: { "Content-Type": "application/json", "X-Ingest-Key": key() },
-      body: JSON.stringify({ text: String(text).slice(0, 1800), voice: localStorage.getItem("voicePersona") || "troy" }),
-    });
-    if (!r.ok) throw new Error("tts " + r.status);
-    const blob = await r.blob();
-    const url = URL.createObjectURL(blob);
+      body: JSON.stringify({ text: String(text).slice(0, 1800), voice: localStorage.getItem("voicePersona") || "troy" }) });
+    if(!r.ok) throw new Error("tts " + r.status);
+    const url = URL.createObjectURL(await r.blob());
     const a = new Audio(url);
-    a.playbackRate = parseFloat(localStorage.getItem("voicePlayRate") || "1");
     serverAudio = a;
-    a.onended = function () { URL.revokeObjectURL(url); serverAudio = null; done(); };
-    a.onerror = function () { URL.revokeObjectURL(url); serverAudio = null; legacySpeak(text, done); };
+    a.playbackRate = parseFloat(localStorage.getItem("voicePlayRate") || "1");
+    a.onended = function(){ URL.revokeObjectURL(url); serverAudio = null; done(); };
+    a.onerror = function(){ URL.revokeObjectURL(url); serverAudio = null; legacySpeak(text, done); };
     await a.play();
-  } catch (e) {
-    window.__speakingServer = false;
-    legacySpeak(text, done);
-  }
+  }catch(e){ window.__speakingServer = false; legacySpeak(text, done); }
 }
 
-function speakBubble(btn) {
-  speakText(btn.parentElement.querySelector(".bubble").textContent);
-}
-function fillVoiceSelect() {
-  const sel = document.getElementById("vVoice");
-  if (!sel) return;
-  const current = localStorage.getItem("voiceName") || "";
-  sel.innerHTML = '<option value="">(default voice)</option>' +
-    speechSynthesis.getVoices().map(function (v) {
-      return '<option value="' + esc(v.name) + '"' + (v.name === current ? " selected" : "") +
-             ">" + esc(v.name) + " (" + esc(v.lang) + ")</option>";
-    }).join("");
-}
-if ("speechSynthesis" in window) {
-  fillVoiceSelect();
-  speechSynthesis.onvoiceschanged = fillVoiceSelect;
-}
-function loadVoiceSettings() {
-  fillVoiceSelect();
-  document.getElementById("vSpeak").checked = localStorage.getItem("voiceSpeak") !== "0";
-  document.getElementById("vPersona").value = localStorage.getItem("voicePersona") || "troy";
-  document.getElementById("vPlayRate").value = localStorage.getItem("voicePlayRate") || "1";
-  document.getElementById("vPlayRateVal").textContent = (localStorage.getItem("voicePlayRate") || "1") + "×";
-  document.getElementById("vRate").value = localStorage.getItem("voiceRate") || "1";
-  document.getElementById("vPitch").value = localStorage.getItem("voicePitch") || "1";
-  document.getElementById("vRateVal").textContent = (localStorage.getItem("voiceRate") || "1") + "×";
-  document.getElementById("vPitchVal").textContent = localStorage.getItem("voicePitch") || "1";
-  document.getElementById("vLang").value = localStorage.getItem("recogLang") || "en-US";
-  document.getElementById("vAuto").checked = localStorage.getItem("voiceAutoSend") === "1";
-}
-(function bindVoiceSettings() {
-  const bind = function (id, ev, fn) { document.getElementById(id)[ev] = fn; };
-  bind("vSpeak", "onchange", function (e) { localStorage.setItem("voiceSpeak", e.target.checked ? "1" : "0"); });
-  bind("vPersona", "onchange", function (e) { localStorage.setItem("voicePersona", e.target.value); });
-  bind("vPlayRate", "oninput", function (e) { localStorage.setItem("voicePlayRate", e.target.value); document.getElementById("vPlayRateVal").textContent = e.target.value + "×"; });
-  bind("vVoice", "onchange", function (e) { localStorage.setItem("voiceName", e.target.value); });
-  bind("vRate", "oninput", function (e) { localStorage.setItem("voiceRate", e.target.value); document.getElementById("vRateVal").textContent = e.target.value + "×"; });
-  bind("vPitch", "oninput", function (e) { localStorage.setItem("voicePitch", e.target.value); document.getElementById("vPitchVal").textContent = e.target.value; });
-  bind("vLang", "onchange", function (e) { localStorage.setItem("recogLang", e.target.value); });
-  bind("vAuto", "onchange", function (e) { localStorage.setItem("voiceAutoSend", e.target.checked ? "1" : "0"); });
-})();
 let listening = false, convoMode = false, emptyStreak = 0;
 let mediaRecorder = null, audioStream = null, silenceTimer = null, maxTimer = null;
+const STOPWORDS = ["the","a","an","it","this","that","um","uh","er","hmm"];
+const CLOSERS = /^(thank you|thanks|thankyou|terima kasih|thats all|that is all|nothing else|goodbye|good bye|bye bye|bye|stop|no more|ok thanks|okay thanks|see you|shut up|enough)/;
 
-async function startRecognition() {
+async function startRecognition(){
   const btn = document.getElementById("micBtn");
-  if (!navigator.mediaDevices || !window.MediaRecorder) { legacySR(); return; }
+  if(!navigator.mediaDevices || !window.MediaRecorder){ legacySR(); return; }
   let actx = null;
-  try {
-    audioStream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    });
-  } catch (e) { btn.textContent = "🎙️"; return; }
+  try{
+    audioStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  }catch(e){ btn.textContent = "🎙️"; return; }
   const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus"
              : MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "";
   mediaRecorder = new MediaRecorder(audioStream, mime ? { mimeType: mime } : undefined);
   const chunks = [];
-  mediaRecorder.ondataavailable = function (e) { if (e.data.size) chunks.push(e.data); };
-  mediaRecorder.onstop = async function () {
+  mediaRecorder.ondataavailable = e => { if(e.data.size) chunks.push(e.data); };
+  mediaRecorder.onstop = async function(){
     clearInterval(silenceTimer); clearTimeout(maxTimer);
-    audioStream.getTracks().forEach(function (t) { t.stop(); });
-    if (actx) actx.close().catch(function () {});
+    audioStream.getTracks().forEach(t => t.stop());
+    if(actx) actx.close().catch(() => {});
     listening = false; btn.textContent = "🎙️";
     const blob = new Blob(chunks, { type: mediaRecorder.mimeType || "audio/webm" });
-    if (blob.size < 800) { pauseOrStop(); return; }
-    try {
-      const r = await fetch(WORKER + "/stt", {
-        method: "POST",
-        headers: { "Content-Type": blob.type, "X-Ingest-Key": key() },
-        body: blob,
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || ("HTTP " + r.status));
-      const text = (j.text || "").trim();
-      const cleaned = text.replace(/[^\p{L}\p{N} ]/gu, "").trim();
-      const t = cleaned.toLowerCase().trim();
-      if (!text || cleaned.length < 3) { pauseOrStop(); return; }
-      if (["the","a","an","it","this","that","um","uh","er","hmm"].includes(t)) { pauseOrStop(); return; }
-      if (t === (window.__lastQuery || "")) { pauseOrStop(); return; }
-      window.__lastQuery = t;
-      if (/^(thank you|thanks|thankyou|terima kasih|thats all|that is all|nothing else|goodbye|good bye|bye bye|bye|stop|no more|ok thanks|okay thanks|see you|shut up|enough)/.test(t)) {
-        endConvo(true);
-        return;
-      }   // noise/punctuation-only = silence
-      const t = text.toLowerCase().replace(/[^\\p{L}\\p{N} ]/gu, "").trim();
-      if (/^(thank you|thanks|thankyou|terima kasih|thats all|that is all|nothing else|goodbye|good bye|bye bye|bye|stop|no more|ok thanks|okay thanks|see you)/.test(t)) {
-        endConvo(true);
-        return;
-      }
-      const low = text.toLowerCase();
-      const last = (window.__lastAnswer || "").toLowerCase();
-      let echo = false;
-      for (let i = 0; i + 40 <= low.length; i += 20) {
-        if (last.indexOf(low.slice(i, i + 40)) !== -1) { echo = true; break; }
-      }
-      if (echo) { pauseOrStop(); return; }
-      emptyStreak = 0;
-      document.getElementById("chatIn").value = text;
-      if (convoMode || localStorage.getItem("voiceAutoSend") === "1") send();
-    } catch (e) {
-      if (convoMode) setTimeout(function () { if (convoMode) startRecognition(); }, 1000);
-    }
+    if(blob.size < 800){ pauseOrStop(); return; }
+    let j;
+    try{
+      const r = await fetch(WORKER + "/stt", { method: "POST",
+        headers: { "Content-Type": blob.type, "X-Ingest-Key": key() }, body: blob });
+      j = await r.json();
+      if(!r.ok) throw new Error(j.error || ("HTTP " + r.status));
+    }catch(e){ if(convoMode) setTimeout(() => { if(convoMode) startRecognition(); }, 1000); return; }
+    const text = (j.text || "").trim();
+    const cleaned = text.replace(/[^\p{L}\p{N} ]/gu, "").trim();
+    const t = cleaned.toLowerCase();
+    if(!text || cleaned.length < 3 || STOPWORDS.includes(t)){ pauseOrStop(); return; }
+    if(t === (window.__lastQuery || "")){ pauseOrStop(); return; }
+    const low = text.toLowerCase(), last = (window.__lastAnswer || "").toLowerCase();
+    let echo = false;
+    for(let i = 0; i + 40 <= low.length; i += 20){ if(last.indexOf(low.slice(i, i + 40)) !== -1){ echo = true; break; } }
+    if(echo){ pauseOrStop(); return; }
+    if(CLOSERS.test(t)){ endConvo(true); return; }
+    window.__lastQuery = t;
+    emptyStreak = 0;
+    document.getElementById("chatIn").value = text;
+    if(convoMode || localStorage.getItem("voiceAutoSend") === "1") send();
   };
   mediaRecorder.start(250);
-  listening = true;
-  btn.textContent = "⏺ listening…";
-  try {
+  listening = true; btn.textContent = "⏺ listening…";
+  try{
     actx = new (window.AudioContext || window.webkitAudioContext)();
     const an = actx.createAnalyser(); an.fftSize = 512;
     actx.createMediaStreamSource(audioStream).connect(an);
     const buf = new Uint8Array(an.fftSize);
     let quiet = 0, elapsed = 0;
-    silenceTimer = setInterval(function () {
+    silenceTimer = setInterval(function(){
       elapsed++;
       an.getByteTimeDomainData(buf);
       let sum = 0;
-      for (let i = 0; i < buf.length; i++) { const dd = buf[i] - 128; sum += dd * dd; }
+      for(let i = 0; i < buf.length; i++){ const d = buf[i] - 128; sum += d * d; }
       const level = Math.sqrt(sum / buf.length);
-      if (window.__speaking && level > 26 && mediaRecorder.state === "recording") {
-        stopServerAudio();
-        if (window.speechSynthesis) speechSynthesis.cancel();
+      if(window.__speaking && level > 26 && mediaRecorder.state === "recording"){
+        stopServerAudio(); if(window.speechSynthesis) speechSynthesis.cancel();
       }
-      if (elapsed < 7) return;
-      if (level < 4) {
-        if (++quiet >= 15 && mediaRecorder.state === "recording") mediaRecorder.stop();
-      } else quiet = 0;
+      if(elapsed < 7) return;
+      if(level < 4){ if(++quiet >= 15 && mediaRecorder.state === "recording") mediaRecorder.stop(); }
+      else quiet = 0;
     }, 125);
-    maxTimer = setTimeout(function () { if (mediaRecorder.state === "recording") mediaRecorder.stop(); }, 20000);
-  } catch (e) {
-    maxTimer = setTimeout(function () { if (mediaRecorder.state === "recording") mediaRecorder.stop(); }, 8000);
+    maxTimer = setTimeout(() => { if(mediaRecorder.state === "recording") mediaRecorder.stop(); }, 20000);
+  }catch(e){
+    maxTimer = setTimeout(() => { if(mediaRecorder.state === "recording") mediaRecorder.stop(); }, 8000);
   }
 }
-function pauseOrStop() {
-  if (!convoMode) return;
+function pauseOrStop(){
+  if(!convoMode) return;
   emptyStreak++;
-  if (emptyStreak >= 3) exitConvo();
-  else setTimeout(function () { if (convoMode) startRecognition(); }, 300);
+  if(emptyStreak >= 3) exitConvo();
+  else setTimeout(() => { if(convoMode) startRecognition(); }, 300);
 }
-function toggleMic() {
-  if (convoMode) { endConvo(false); return; }   // one click kills the whole loop
-  if (listening && mediaRecorder && mediaRecorder.state === "recording") { mediaRecorder.stop(); return; }
-  stopServerAudio();
-  if (window.speechSynthesis) speechSynthesis.cancel();
+function toggleMic(){
+  if(convoMode){ endConvo(false); return; }
+  if(listening && mediaRecorder && mediaRecorder.state === "recording"){ mediaRecorder.stop(); return; }
+  stopServerAudio(); if(window.speechSynthesis) speechSynthesis.cancel();
   startRecognition();
 }
-function endConvo(farewell) {
-  convoMode = false;
-  emptyStreak = 0;
-  if (document.getElementById("vConvo")) document.getElementById("vConvo").checked = false;
+function toggleConvo(){ if(convoMode) exitConvo(); else { convoMode = true; emptyStreak = 0; startRecognition(); } }
+function endConvo(farewell){
+  convoMode = false; emptyStreak = 0;
+  if(document.getElementById("vConvo")) document.getElementById("vConvo").checked = false;
   localStorage.setItem("voiceConvo", "0");
-  if (listening && mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
-  stopServerAudio();
-  if (window.speechSynthesis) speechSynthesis.cancel();
-  if (farewell) speakText("You are welcome. Press the microphone anytime to continue.");
+  if(listening && mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+  stopServerAudio(); if(window.speechSynthesis) speechSynthesis.cancel();
+  if(farewell) speakText("You are welcome. Press the microphone anytime to continue.");
 }
-function toggleConvo() {
-  if (convoMode) { exitConvo(); return; }
-  convoMode = true; emptyStreak = 0; startRecognition();
-}
-function endConvo(farewell) {
-  convoMode = false;
-  emptyStreak = 0;
-  if (document.getElementById("vConvo")) document.getElementById("vConvo").checked = false;
-  localStorage.setItem("voiceConvo", "0");
-  if (listening && mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
-  stopServerAudio();
-  if (window.speechSynthesis) speechSynthesis.cancel();
-  if (farewell) speakText("You are welcome. Press the microphone anytime to continue.");
-}
-function exitConvo() {
-  convoMode = false;
-  if (document.getElementById("convoBtn")) {
-    const btn = document.getElementById("convoBtn");
-    btn.style.borderColor = ""; btn.style.color = "";
-  }
-  if (document.getElementById("vConvo")) document.getElementById("vConvo").checked = false;
-  if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
-  stopServerAudio();
-  if (window.speechSynthesis) speechSynthesis.cancel();
-}
-function legacySR() {
+function exitConvo(){ endConvo(false); }
+function legacySR(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   const btn = document.getElementById("micBtn");
-  if (!SR) { btn.textContent = "n/a"; setTimeout(function () { btn.textContent = "🎙️"; }, 1500); return; }
+  if(!SR){ btn.textContent = "n/a"; setTimeout(() => btn.textContent = "🎙️", 1500); return; }
   const recog = new SR();
   recog.lang = localStorage.getItem("recogLang") || "en-US";
   recog.interimResults = false;
-  recog.onresult = function (e) {
+  recog.onresult = e => {
     document.getElementById("chatIn").value = e.results[0][0].transcript;
-    if (convoMode || localStorage.getItem("voiceAutoSend") === "1") send();
+    if(convoMode || localStorage.getItem("voiceAutoSend") === "1") send();
   };
-  recog.onend = function () {
-    listening = false; btn.textContent = "🎙️";
-    if (convoMode) setTimeout(function () { if (convoMode) startRecognition(); }, 300);
-  };
+  recog.onend = function(){ listening = false; btn.textContent = "🎙️";
+    if(convoMode) setTimeout(() => { if(convoMode) startRecognition(); }, 300); };
   recog.onerror = recog.onend;
-  listening = true;
-  btn.textContent = "⏺ listening…";
-  recog.start();
+  listening = true; btn.textContent = "⏺ listening…"; recog.start();
 }
+
+function fillVoiceSelect(){
+  const sel = document.getElementById("vVoice");
+  const cur = localStorage.getItem("voiceName") || "";
+  sel.innerHTML = '<option value="">(default voice)</option>' +
+    speechSynthesis.getVoices().map(v => '<option value="' + esc(v.name) + '"' + (v.name === cur ? " selected" : "") + ">" + esc(v.name) + " (" + esc(v.lang) + ")</option>").join("");
+}
+if("speechSynthesis" in window){ fillVoiceSelect(); speechSynthesis.onvoiceschanged = fillVoiceSelect; }
+function loadVoiceSettings(){
+  fillVoiceSelect();
+  const g = id => document.getElementById(id);
+  g("vConvo").checked = localStorage.getItem("voiceConvo") === "1";
+  g("vSpeak").checked = localStorage.getItem("voiceSpeak") !== "0";
+  g("vPersona").value = localStorage.getItem("voicePersona") || "troy";
+  g("vPlayRate").value = localStorage.getItem("voicePlayRate") || "1";
+  g("vPlayRateVal").textContent = (localStorage.getItem("voicePlayRate") || "1") + "×";
+  g("vLang").value = localStorage.getItem("recogLang") || "en-US";
+  g("vAuto").checked = localStorage.getItem("voiceAutoSend") === "1";
+  g("vRate").value = localStorage.getItem("voiceRate") || "1";
+  g("vPitch").value = localStorage.getItem("voicePitch") || "1";
+}
+(function(){
+  const B = (id, ev, fn) => document.getElementById(id)[ev] = fn;
+  B("vConvo", "onchange", e => {
+    localStorage.setItem("voiceConvo", e.target.checked ? "1" : "0");
+    if(e.target.checked){ convoMode = true; emptyStreak = 0; startRecognition(); } else endConvo(false);
+  });
+  B("vSpeak", "onchange", e => localStorage.setItem("voiceSpeak", e.target.checked ? "1" : "0"));
+  B("vPersona", "onchange", e => localStorage.setItem("voicePersona", e.target.value));
+  B("vPlayRate", "oninput", e => { localStorage.setItem("voicePlayRate", e.target.value); document.getElementById("vPlayRateVal").textContent = e.target.value + "×"; });
+  B("vLang", "onchange", e => localStorage.setItem("recogLang", e.target.value));
+  B("vAuto", "onchange", e => localStorage.setItem("voiceAutoSend", e.target.checked ? "1" : "0"));
+  B("vVoice", "onchange", e => localStorage.setItem("voiceName", e.target.value));
+  B("vRate", "oninput", e => localStorage.setItem("voiceRate", e.target.value));
+  B("vPitch", "oninput", e => localStorage.setItem("voicePitch", e.target.value));
+})();
 
 /* ---------- chats ---------- */
 let currentChat = null, busy = false;
-async function loadChats() {
-  try {
+async function loadChats(){
+  try{
     const j = await api("/chats");
     const list = document.getElementById("chatList");
-    if (!j.chats || !j.chats.length) { list.innerHTML = '<div class="meta" style="padding:8px 12px">No conversations yet.</div>'; return; }
+    if(!j.chats || !j.chats.length){ list.innerHTML = '<div class="meta" style="padding:8px 12px">No conversations yet.</div>'; return; }
     list.innerHTML = "";
-    for (const c of j.chats) {
+    for(const c of j.chats){
       const d = document.createElement("div");
       d.className = "chatitem" + (c.id === currentChat ? " active" : "");
       d.title = c.title;
@@ -577,144 +454,163 @@ async function loadChats() {
       d.querySelector(".t").textContent = c.title;
       d.querySelector(".t").onclick = () => openChat(c.id);
       const acts = d.querySelector(".acts");
-      acts.children[0].onclick = async (e) => {
+      acts.children[0].onclick = async e => {
         e.preventDefault();
         const t = prompt("Rename chat:", c.title);
-        if (t && t.trim()) { await api("/chat-meta", { method: "POST", body: JSON.stringify({ id: c.id, title: t.trim().slice(0,80) }) }); loadChats(); }
+        if(t && t.trim()){ await api("/chat-meta", { method: "POST", body: JSON.stringify({ id: c.id, title: t.trim().slice(0,80) }) }); loadChats(); }
       };
-      acts.children[1].onclick = async (e) => {
+      acts.children[1].onclick = async e => {
         e.preventDefault();
-        if (!confirm('Delete chat "' + c.title + '"?')) return;
+        if(!confirm('Delete chat "' + c.title + '"?')) return;
         await api("/chat?id=" + encodeURIComponent(c.id), { method: "DELETE" });
-        if (currentChat === c.id) newChat();
+        if(currentChat === c.id) newChat();
         loadChats();
       };
       list.appendChild(d);
     }
-  } catch (e) { document.getElementById("chatList").innerHTML = '<div class="meta err">' + esc(e.message) + '</div>'; }
+  }catch(e){ document.getElementById("chatList").innerHTML = '<div class="meta err">' + esc(e.message) + '</div>'; }
 }
-function newChat() {
+function newChat(){
   currentChat = null;
-  renderWelcome();
   document.querySelectorAll(".chatitem").forEach(x => x.classList.remove("active"));
   showView("chat");
+  renderWelcome();
   document.getElementById("chatIn").focus();
 }
-async function openChat(id) {
-  try {
+async function openChat(id){
+  try{
     const j = await api("/chat?id=" + encodeURIComponent(id));
     currentChat = id;
     const m = document.getElementById("msgs"); m.innerHTML = "";
-    for (const msg of j.messages || []) appendMsg(msg.role, msg.content, []);
+    for(const msg of j.messages || []) appendMsg(msg.role, msg.content, []);
     showView("chat"); loadChats(); scrollBottom();
-  } catch (e) { alert("failed to load chat: " + e.message); }
+  }catch(e){ alert("failed to load chat: " + e.message); }
 }
-function appendMsg(role, content, sources) {
+function appendMsg(role, content, sources){
   const m = document.getElementById("msgs");
-  const empty = m.querySelector(".empty"); if (empty) empty.remove();
+  const empty = m.querySelector(".empty"); if(empty) empty.remove();
   const wrap = document.createElement("div");
   wrap.className = "msg " + (role === "user" ? "user" : "bot");
   let html = '<div class="msgrow"><div class="bubble">' + esc(content) + '</div></div>';
-  if (role !== "user") html += '<button class="copybtn" onclick="copyText(this)">copy</button>' +
-    '<button class="copybtn" onclick="speakBubble(this)" title="read aloud">🔊</button>';
-  for (const s of sources) {
-    html += '<div class="src"><span class="score">' + (s.score ?? 0).toFixed(3) + '</span> #' +
-            esc(String(s.id)) + ' — ' + esc(s.preview) + '…</div>';
+  if(role !== "user"){
+    html += '<button class="copybtn" onclick="copyText(this)">copy</button>' +
+            '<button class="copybtn" onclick="speakBubble(this)" title="read aloud">🔊</button>';
+  }
+  for(const s of sources){
+    html += '<div class="src"><span class="score">' + (s.score ?? 0).toFixed(3) + '</span> #' + esc(String(s.id)) + ' — ' + esc(s.preview) + '…</div>';
   }
   wrap.innerHTML = html;
   m.appendChild(wrap); scrollBottom();
   return wrap;
 }
-function copyText(btn) {
-  const text = btn.parentElement.querySelector(".bubble").textContent;
-  navigator.clipboard.writeText(text).then(() => { btn.textContent = "copied"; setTimeout(() => btn.textContent = "copy", 1200); });
+function copyText(btn){
+  const t = btn.parentElement.querySelector(".bubble").textContent;
+  navigator.clipboard.writeText(t).then(() => { btn.textContent = "copied"; setTimeout(() => btn.textContent = "copy", 1200); });
 }
-function scrollBottom() { const m = document.getElementById("msgs"); m.scrollTop = m.scrollHeight; }
-async function send() {
+function speakBubble(btn){ speakText(btn.parentElement.querySelector(".bubble").textContent); }
+function scrollBottom(){ const m = document.getElementById("msgs"); m.scrollTop = m.scrollHeight; }
+async function send(){
   const input = document.getElementById("chatIn");
   const message = input.value.trim();
-  if (!message || busy) return;
+  if(!message || busy) return;
   busy = true; input.value = "";
-  if (window.speechSynthesis) speechSynthesis.cancel();
+  stopServerAudio(); if(window.speechSynthesis) speechSynthesis.cancel();
   appendMsg("user", message, []);
   const thinking = appendMsg("bot", "thinking…", []);
-  try {
+  try{
     const j = await api("/chat", { method: "POST", body: JSON.stringify({ chat_id: currentChat, message }) });
     currentChat = j.chat_id;
     window.__lastAnswer = String(j.answer).toLowerCase();
-    if (localStorage.getItem("voiceSpeak") !== "0") speakText(j.answer, function () {
-      if (convoMode && !listening) startRecognition();
-    });
     thinking.querySelector(".bubble").textContent = j.answer;
     let srcs = "";
-    for (const s of j.sources) {
-      srcs += '<div class="src"><span class="score">' + (s.score ?? 0).toFixed(3) + '</span> #' +
-              esc(String(s.id)) + ' — ' + esc(s.preview) + '…</div>';
+    for(const s of j.sources){
+      srcs += '<div class="src"><span class="score">' + (s.score ?? 0).toFixed(3) + '</span> #' + esc(String(s.id)) + ' — ' + esc(s.preview) + '…</div>';
     }
     thinking.insertAdjacentHTML("beforeend", srcs);
     loadChats();
-  } catch (e) {
+    if(localStorage.getItem("voiceSpeak") !== "0")
+      speakText(j.answer, () => { if(convoMode && !listening) startRecognition(); });
+    else if(convoMode && !listening) startRecognition();
+  }catch(e){
     thinking.querySelector(".bubble").textContent = "Error: " + e.message;
-    if (convoMode) setTimeout(function () { if (convoMode) startRecognition(); }, 600);
-  } finally { busy = false; input.focus(); }
+    if(convoMode) setTimeout(() => { if(convoMode) startRecognition(); }, 600);
+  }finally{ busy = false; input.focus(); }
 }
 
 /* ---------- upload ---------- */
 const drop = document.getElementById("drop");
 drop.onclick = () => document.getElementById("filePick").click();
-document.getElementById("filePick").onchange = (e) => handleFiles([...e.target.files]);
+document.getElementById("filePick").onchange = e => handleFiles([...e.target.files]);
 ["dragover","dragenter"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
 ["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
 drop.addEventListener("drop", e => handleFiles([...e.dataTransfer.files]));
 function up(m){ document.getElementById("upOut").innerHTML = '<div class="meta">' + esc(m) + '</div>'; }
-async function handleFiles(files) { for (const f of files) await handleFile(f); }
-function chunkText(text, size, overlap) {
+async function handleFiles(files){ for(const f of files) await handleFile(f); }
+function chunkText(text, size, overlap){
   size = size || 1000; overlap = overlap || 200;
   text = text.replace(/\s+/g, " ").trim();
-  if (!text) return [];
+  if(!text) return [];
   const chunks = []; let start = 0;
-  while (start < text.length) {
+  while(start < text.length){
     let end = Math.min(start + size, text.length);
-    if (end < text.length) { const b = text.lastIndexOf(" ", end); if (b > start + size/2) end = b; }
+    if(end < text.length){ const b = text.lastIndexOf(" ", end); if(b > start + size/2) end = b; }
     chunks.push(text.slice(start, end).trim());
-    if (end === text.length) break;
+    if(end === text.length) break;
     start = end - overlap;
   }
   return chunks.filter(c => c.length > 40);
 }
-async function handleFile(file) {
-  try {
+async function handleFile(file){
+  try{
     up("extracting " + file.name + "…");
     const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
     const segments = [];
-    for (let p = 1; p <= pdf.numPages; p++) {
+    for(let p = 1; p <= pdf.numPages; p++){
       const page = await pdf.getPage(p);
       const tc = await page.getTextContent();
       const t = tc.items.map(i => i.str).join(" ");
-      if (t.trim()) segments.push({ seg: "p" + (p-1), text: t });
+      if(t.trim()) segments.push({ seg: "p" + (p-1), text: t });
       up("extracting " + file.name + "… page " + p + "/" + pdf.numPages);
     }
+    let text = segments.map(s => s.text).join("\n");
+    if(text.replace(/\s+/g, "").length < 100){
+      up("no text layer detected — running OCR on " + pdf.numPages + " page(s)…");
+      const images = [];
+      for(let p = 1; p <= pdf.numPages; p++){
+        const page = await pdf.getPage(p);
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement("canvas");
+        canvas.width = viewport.width; canvas.height = viewport.height;
+        await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+        images.push(canvas.toDataURL("image/jpeg", 0.85));
+        up("OCR: rendering page " + p + "/" + pdf.numPages + "…");
+      }
+      const j = await api("/ocr", { method: "POST", body: JSON.stringify({ images }) });
+      text = j.text;
+      segments.length = 0;
+      segments.push({ seg: "ocr", text });
+      up("OCR complete — " + text.length + " chars recognized");
+    }
     await sendChunks(file.name.replace(/\.pdf$/i, ""), segments);
-  } catch (e) { up("failed on " + file.name + ": " + e.message + " (text-based PDFs only)"); }
+  }catch(e){ up("failed on " + file.name + ": " + e.message); }
 }
-async function uploadPaste() {
+async function uploadPaste(){
   const text = document.getElementById("paste").value;
   const name = document.getElementById("pasteName").value.trim() || "pasted-text";
-  if (!text.trim()) return;
+  if(!text.trim()) return;
   await sendChunks(name.replace(/[^\w.-]+/g, "-"), [{ seg: "t0", text }]);
 }
-async function sendChunks(base, segments) {
+async function sendChunks(base, segments){
   const all = [];
-  for (const s of segments) {
+  for(const s of segments)
     chunkText(s.text).forEach((c, j) => all.push({ id: (base + "-" + s.seg + "-c" + j).slice(0,200), text: c }));
-  }
-  if (!all.length) { up("no usable text found"); return; }
+  if(!all.length){ up("no usable text found"); return; }
   let done = 0;
-  for (let i = 0; i < all.length; i += 500) {
+  for(let i = 0; i < all.length; i += 500){
     const part = all.slice(i, i + 500);
-    try {
-      await api("/ingest-text", { method: "POST", body: JSON.stringify({ chunks: part, name: base, total_chunks: all.length }) });
-    } catch (e) { up("upload failed: " + e.message); return; }
+    try{ await api("/ingest-text", { method: "POST",
+      body: JSON.stringify({ chunks: part, name: base, total_chunks: all.length }) }); }
+    catch(e){ up("upload failed: " + e.message); return; }
     done += part.length;
     up("uploading " + base + "… " + done + "/" + all.length);
   }
@@ -722,54 +618,56 @@ async function sendChunks(base, segments) {
 }
 
 /* ---------- docs / logs / lab ---------- */
-async function loadDocs() {
+async function loadDocs(){
   const out = document.getElementById("docsOut");
   out.innerHTML = '<div class="meta">loading…</div>';
-  try {
+  try{
     const j = await api("/documents");
-    if (!j.documents || !j.documents.length) { out.innerHTML = '<div class="meta">Nothing uploaded yet.</div>'; return; }
+    if(!j.documents || !j.documents.length){ out.innerHTML = '<div class="meta">Nothing uploaded yet.</div>'; return; }
     let html = "<table><tr><th>document</th><th>source</th><th>chunks</th><th>updated (UTC)</th></tr>";
-    for (const d of j.documents) html += "<tr><td>" + esc(d.name) + "</td><td>" + esc(d.source || "personal") + "</td><td class='num'>" + d.chunks + "</td><td class='meta'>" + esc(d.updated_at) + "</td></tr>";
+    for(const d of j.documents)
+      html += "<tr><td>" + esc(d.name) + "</td><td>" + esc(d.source || "personal") + "</td><td class='num'>" + d.chunks + "</td><td class='meta'>" + esc(d.updated_at) + "</td></tr>";
     out.innerHTML = html + "</table>";
-  } catch (e) { out.innerHTML = '<div class="meta err">' + esc(e.message) + '</div>'; }
+  }catch(e){ out.innerHTML = '<div class="meta err">' + esc(e.message) + '</div>'; }
 }
-async function loadLogs() {
+async function loadLogs(){
   const out = document.getElementById("logsOut");
   out.innerHTML = '<div class="meta">loading…</div>';
-  try {
+  try{
     const j = await api("/logs?limit=50");
-    if (!j.logs || !j.logs.length) { out.innerHTML = '<div class="meta">No queries logged yet.</div>'; return; }
+    if(!j.logs || !j.logs.length){ out.innerHTML = '<div class="meta">No queries logged yet.</div>'; return; }
     let html = "<table><tr><th>#</th><th>when (UTC)</th><th>question</th><th>src</th><th>ms</th></tr>";
-    for (const l of j.logs) html += "<tr><td>" + l.id + "</td><td class='meta'>" + esc(l.created_at) + "</td><td>" + esc(l.question) + "</td><td class='num'>" + l.num_sources + "</td><td class='num'>" + l.elapsed_ms + "</td></tr>";
+    for(const l of j.logs)
+      html += "<tr><td>" + l.id + "</td><td class='meta'>" + esc(l.created_at) + "</td><td>" + esc(l.question) + "</td><td class='num'>" + l.num_sources + "</td><td class='num'>" + l.elapsed_ms + "</td></tr>";
     out.innerHTML = html + "</table>";
-  } catch (e) { out.innerHTML = '<div class="meta err">' + esc(e.message) + "</div>"; }
+  }catch(e){ out.innerHTML = '<div class="meta err">' + esc(e.message) + '</div>'; }
 }
-async function loadLab() {
+async function loadLab(){
   const out = document.getElementById("labOut");
   out.innerHTML = '<div class="meta">loading from GitHub…</div>';
-  try {
+  try{
     const listing = await (await fetch(GH_API)).json();
     const files = listing.filter(f => f.name.endsWith(".json"));
     const rows = [];
-    for (const f of files) {
-      try {
+    for(const f of files){
+      try{
         const r = await (await fetch(f.download_url)).json();
-        if (!r.metrics) continue;
+        if(!r.metrics) continue;
         rows.push({ name: r.name, dataset: r.dataset, retriever: r.retriever,
           ndcg: r.metrics.ndcg_at_10, grounding: r.metrics.answer_grounding ?? null,
           commit: (r.metadata && r.metadata.git_commit || "").slice(0,7) });
-      } catch (_) {}
+      }catch(_){}
     }
     rows.sort((a,b) => (a.dataset + a.retriever).localeCompare(b.dataset + b.retriever));
     let html = "<table><tr><th>experiment</th><th>dataset</th><th>retriever</th><th>nDCG@10</th><th>grounding</th><th>commit</th></tr>";
-    for (const r of rows) html += "<tr><td>" + esc(r.name) + "</td><td>" + esc(r.dataset) + "</td><td>" + esc(r.retriever) + "</td><td class='num'>" + (r.ndcg ?? "–") + "</td><td class='num'>" + (r.grounding ?? "–") + "</td><td class='meta'>" + r.commit + "</td></tr>";
+    for(const r of rows)
+      html += "<tr><td>" + esc(r.name) + "</td><td>" + esc(r.dataset) + "</td><td>" + esc(r.retriever) + "</td><td class='num'>" + (r.ndcg ?? "–") + "</td><td class='num'>" + (r.grounding ?? "–") + "</td><td class='meta'>" + r.commit + "</td></tr>";
     const reports = listing.filter(f => f.name.endsWith(".md"));
-    if (reports.length) {
+    if(reports.length)
       html += "</table><div class='meta' style='margin-top:14px'>Reports: " +
         reports.map(f => "<a href='" + f.download_url + "' target='_blank'>" + esc(f.name.slice(0,40)) + "…</a>").join(" · ") + "</div>";
-    }
     out.innerHTML = html;
-  } catch (e) { out.innerHTML = '<div class="meta err">GitHub fetch failed: ' + esc(e.message) + "</div>"; }
+  }catch(e){ out.innerHTML = '<div class="meta err">GitHub fetch failed: ' + esc(e.message) + '</div>'; }
 }
 </script>
 </body>
